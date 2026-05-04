@@ -1,0 +1,36 @@
+# ~/.claude/.gitignore
+#
+# G5 (harness rule): Claude Code 런타임 데이터를 엄격히 제외하고
+# 하네스 파일만 추적한다.
+#
+# 전략: 모든 파일을 기본 무시(/*) 후, 하네스 파일만 명시 화이트리스트.
+# 이 패턴은 Claude Code의 sessions/plans/projects/backups/telemetry/plugins/
+# 등이 추가되더라도 자동으로 제외 대상이 됩니다.
+
+# 기본: 루트의 모든 항목 무시
+/*
+
+# 하네스 파일만 추적 (화이트리스트)
+!/.gitignore
+!/CLAUDE.md
+!/harness.v2.xml
+!/README.md
+
+# 안전망: 비밀값/세션·메모리/세션 컨텐츠가 혹시라도 포함되지 않도록 명시 차단
+**/sessions/
+**/plans/
+**/projects/
+**/backups/
+**/telemetry/
+**/plugins/
+**/shell-snapshots/
+**/session-env/
+**/memory/
+**/*.session
+**/*.token
+**/.env
+**/.env.*
+**/credentials*
+**/*.pem
+**/*.key
+**/*.pfx
