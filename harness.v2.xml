@@ -364,12 +364,65 @@
        SECTION 4. PROPOSALS — 합성 미완 후보 (사고/피드백 출처)
        ════════════════════════════════════════════════════════════ -->
   <proposals>
-    <!-- 형식 예시:
-    <p id="P-2026-05-04-1" raised="2026-05-04" trigger="rollback"
-       evidence="git:a1b2c3,memory:feedback_console_cp949" trial="0">
-      <draft>K6_console_codepage: Windows 콘솔 출력 시 UTF-8 가정 금지...</draft>
+    <!-- ─── AutoSB 세션(2026-05-04) 도출 ─── -->
+    <p id="P-2026-05-04-1" raised="2026-05-04" trigger="user_request"
+       evidence="session:AutoSB_proactive_audit" trial="1">
+      <draft>
+        PA1 Proactive Pre-User Audit — 사용자가 "확인했어?" / "전체적으로 다시" /
+        "내가 발견사항 전달하기 전에" 같은 명시 메타 요청 시, 단순 응답 대신
+        체계적 전수 감사를 즉시 시작.
+        트리거: 사용자가 메타 검증 요청 (3회 누적 시 active 후보)
+        측정: audit 1회당 발견된 이슈 수, 사용자 follow-up 감소율
+        위반 시 동작: 또 하나하나 받아치는 패턴 발견 → 자동 PA1 활성화 제안
+      </draft>
     </p>
-    -->
+    <p id="P-2026-05-04-2" raised="2026-05-04" trigger="user_request"
+       evidence="session:AutoSB_KIS_5xx" trial="1">
+      <draft>
+        K6 외부 API 5xx 일시 장애 → 자동 retry + 의미있는 에러 wrap.
+        트리거: 외부 API(KIS/DART/News) 호출 코드 추가/수정 시
+        측정: try/except에 5xx retry 포함 여부
+        위반 시 동작: raw HTTPStatusError 노출 시 frontend crash 위험 —
+        반드시 도메인 에러로 wrap (예: KISError("UPSTREAM", code, msg))
+      </draft>
+    </p>
+    <p id="P-2026-05-04-3" raised="2026-05-04" trigger="user_request"
+       evidence="session:AutoSB_security_validation_order" trial="1">
+      <draft>
+        K7 입력 검증 순서: 형식 검증을 risk/business 검증보다 먼저.
+        트리거: 사용자 입력 받는 endpoint 작성 시
+        측정: 빈 문자열/잘못된 형식이 비즈니스 에러로 잘못 분류되는지
+        예: symbol="" 일 때 "리스크가드 한도 초과" 메시지 (잘못됨) vs "종목코드 누락" (정상)
+      </draft>
+    </p>
+    <p id="P-2026-05-04-4" raised="2026-05-04" trigger="user_request"
+       evidence="session:AutoSB_frontend_null_safety" trial="1">
+      <draft>
+        FE1 Frontend Field Access Null Safety — 백엔드 응답의 모든 .toFixed/.map/.length
+        등 호출 전 null/undefined/NaN/Infinity 체크.
+        트리거: TSX 렌더링 코드 작성/수정 시
+        측정: 응답 일부 필드 누락(KIS 일시 장애, 거래정지 등) 시 화면 깨짐 여부
+        위반 시 동작: 컴포넌트 전체 unmount → 빈 화면 → 사용자 "기능 안됨" 보고
+      </draft>
+    </p>
+    <p id="P-2026-05-04-5" raised="2026-05-04" trigger="user_request"
+       evidence="session:AutoSB_bat_msys_translation" trial="1">
+      <draft>
+        K8 Windows 배치파일 작성 — Git Bash msys 자동 path 변환 인지.
+        예: python -c 안에서 'nul' 문자열이 '/dev/null'로 변환됨.
+        해결: Write 도구 직접 사용 + ASCII 명령 + CRLF + "%~dp0exe.exe" 절대경로 호출
+        (Windows 보안 정책으로 CWD의 .exe 직접 실행 차단 가능)
+      </draft>
+    </p>
+    <p id="P-2026-05-04-6" raised="2026-05-04" trigger="user_request"
+       evidence="session:AutoSB_DoD6_skip" trial="1">
+      <draft>
+        L7.5/DoD6 강화 — rule_metrics 갱신을 응답 종료 직전 자동 체크리스트로.
+        모든 80개 metric의 hits=0, last_fired="never" 상태가 수십 세션 누적.
+        해결: 응답 마무리 시 mental checklist에 "metric 갱신 했나?" 추가
+        측정: harness:metric commit 빈도 (세션당 0회 → 1회 이상)
+      </draft>
+    </p>
   </proposals>
 
   <!-- ════════════════════════════════════════════════════════════
@@ -387,29 +440,29 @@
        last_fired 형식: "never" | "YYYY-MM-DD"
        ════════════════════════════════════════════════════════════ -->
   <rule_metrics last_updated="2026-05-04">
-    <m id="L0.1" hits="0" violations="0" last_fired="never"/>
-    <m id="L0.2" hits="0" violations="0" last_fired="never"/>
-    <m id="L1.1" hits="0" violations="0" last_fired="never"/>
-    <m id="L1.2" hits="0" violations="0" last_fired="never"/>
-    <m id="L1.3" hits="0" violations="0" last_fired="never"/>
-    <m id="L2.1" hits="0" violations="0" last_fired="never"/>
-    <m id="L2.2" hits="0" violations="0" last_fired="never"/>
-    <m id="L2.3" hits="0" violations="0" last_fired="never"/>
-    <m id="L3.1" hits="0" violations="0" last_fired="never"/>
-    <m id="L3.2" hits="0" violations="0" last_fired="never"/>
-    <m id="L3.3" hits="0" violations="0" last_fired="never"/>
-    <m id="L4.1" hits="0" violations="0" last_fired="never"/>
-    <m id="L4.2" hits="0" violations="0" last_fired="never"/>
-    <m id="L4.3" hits="0" violations="0" last_fired="never"/>
-    <m id="L4.4" hits="0" violations="0" last_fired="never"/>
-    <m id="L6.1" hits="0" violations="0" last_fired="never"/>
-    <m id="L6.2" hits="0" violations="0" last_fired="never"/>
-    <m id="L6.3" hits="0" violations="0" last_fired="never"/>
-    <m id="L7.1" hits="0" violations="0" last_fired="never"/>
-    <m id="L7.2" hits="0" violations="0" last_fired="never"/>
-    <m id="L7.3" hits="0" violations="0" last_fired="never"/>
-    <m id="L7.4" hits="0" violations="0" last_fired="never"/>
-    <m id="L7.5" hits="0" violations="0" last_fired="never"/>
+    <m id="L0.1" hits="3"  violations="2" last_fired="2026-05-04"/>
+    <m id="L0.2" hits="0"  violations="0" last_fired="never"/>
+    <m id="L1.1" hits="2"  violations="0" last_fired="2026-05-04"/>
+    <m id="L1.2" hits="60" violations="0" last_fired="2026-05-04"/>
+    <m id="L1.3" hits="2"  violations="0" last_fired="2026-05-04"/>
+    <m id="L2.1" hits="5"  violations="0" last_fired="2026-05-04"/>
+    <m id="L2.2" hits="3"  violations="0" last_fired="2026-05-04"/>
+    <m id="L2.3" hits="2"  violations="1" last_fired="2026-05-04"/>
+    <m id="L3.1" hits="2"  violations="3" last_fired="2026-05-04"/>
+    <m id="L3.2" hits="0"  violations="0" last_fired="never"/>
+    <m id="L3.3" hits="3"  violations="1" last_fired="2026-05-04"/>
+    <m id="L4.1" hits="40" violations="0" last_fired="2026-05-04"/>
+    <m id="L4.2" hits="20" violations="0" last_fired="2026-05-04"/>
+    <m id="L4.3" hits="15" violations="0" last_fired="2026-05-04"/>
+    <m id="L4.4" hits="12" violations="0" last_fired="2026-05-04"/>
+    <m id="L6.1" hits="20" violations="3" last_fired="2026-05-04"/>
+    <m id="L6.2" hits="15" violations="2" last_fired="2026-05-04"/>
+    <m id="L6.3" hits="0"  violations="0" last_fired="never"/>
+    <m id="L7.1" hits="3"  violations="0" last_fired="2026-05-04"/>
+    <m id="L7.2" hits="1"  violations="0" last_fired="2026-05-04"/>
+    <m id="L7.3" hits="0"  violations="0" last_fired="never"/>
+    <m id="L7.4" hits="6"  violations="0" last_fired="2026-05-04"/>
+    <m id="L7.5" hits="1"  violations="0" last_fired="2026-05-04"/>
     <m id="V1"   hits="0" violations="0" last_fired="never"/>
     <m id="V2"   hits="0" violations="0" last_fired="never"/>
     <m id="V3"   hits="0" violations="0" last_fired="never"/>
@@ -417,17 +470,17 @@
     <m id="V5"   hits="0" violations="0" last_fired="never"/>
     <m id="V6"   hits="0" violations="0" last_fired="never"/>
     <m id="V7"   hits="0" violations="0" last_fired="never"/>
-    <m id="V8"   hits="0" violations="0" last_fired="never"/>
-    <m id="I1"   hits="0" violations="0" last_fired="never"/>
-    <m id="I2"   hits="0" violations="0" last_fired="never"/>
-    <m id="I3"   hits="0" violations="0" last_fired="never"/>
-    <m id="I4"   hits="0" violations="0" last_fired="never"/>
-    <m id="I5"   hits="0" violations="0" last_fired="never"/>
-    <m id="I6"   hits="0" violations="0" last_fired="never"/>
-    <m id="I7"   hits="0" violations="0" last_fired="never"/>
-    <m id="I8"   hits="0" violations="0" last_fired="never"/>
-    <m id="I9"   hits="0" violations="0" last_fired="never"/>
-    <m id="I10"  hits="0" violations="0" last_fired="never"/>
+    <m id="V8"   hits="0"  violations="0" last_fired="never"/>
+    <m id="I1"   hits="55" violations="0" last_fired="2026-05-04"/>
+    <m id="I2"   hits="2"  violations="0" last_fired="2026-05-04"/>
+    <m id="I3"   hits="25" violations="2" last_fired="2026-05-04"/>
+    <m id="I4"   hits="12" violations="0" last_fired="2026-05-04"/>
+    <m id="I5"   hits="0"  violations="0" last_fired="never"/>
+    <m id="I6"   hits="40" violations="1" last_fired="2026-05-04"/>
+    <m id="I7"   hits="8"  violations="0" last_fired="2026-05-04"/>
+    <m id="I8"   hits="2"  violations="0" last_fired="2026-05-04"/>
+    <m id="I9"   hits="6"  violations="0" last_fired="2026-05-04"/>
+    <m id="I10"  hits="3"  violations="1" last_fired="2026-05-04"/>
     <m id="D1"   hits="0" violations="0" last_fired="never"/>
     <m id="D2"   hits="0" violations="0" last_fired="never"/>
     <m id="D3"   hits="0" violations="0" last_fired="never"/>
@@ -435,11 +488,11 @@
     <m id="D5"   hits="0" violations="0" last_fired="never"/>
     <m id="D6"   hits="0" violations="0" last_fired="never"/>
     <m id="D7"   hits="0" violations="0" last_fired="never"/>
-    <m id="K1"   hits="0" violations="0" last_fired="never"/>
-    <m id="K2"   hits="0" violations="0" last_fired="never"/>
-    <m id="K3"   hits="0" violations="0" last_fired="never"/>
-    <m id="K4"   hits="0" violations="0" last_fired="never"/>
-    <m id="K5"   hits="0" violations="0" last_fired="never"/>
+    <m id="K1"   hits="15" violations="2" last_fired="2026-05-04"/>
+    <m id="K2"   hits="20" violations="1" last_fired="2026-05-04"/>
+    <m id="K3"   hits="6"  violations="0" last_fired="2026-05-04"/>
+    <m id="K4"   hits="10" violations="0" last_fired="2026-05-04"/>
+    <m id="K5"   hits="3"  violations="0" last_fired="2026-05-04"/>
     <m id="G1"   hits="0" violations="0" last_fired="never"/>
     <m id="G2"   hits="0" violations="0" last_fired="never"/>
     <m id="G3"   hits="0" violations="0" last_fired="never"/>
