@@ -70,6 +70,7 @@
 | **C7** | `evolution_charter` 자체는 불변 |
 | **C8** | 자동 라이프사이클은 항상 보고서에 명시. 묵시 변경 금지 |
 | **C9** | 글로벌 메트릭 풀 — 모든 워크스페이스의 학습이 단일 풀에 누적 |
+| **C10** *(v2.1+)* | 하네스 새 규칙 추가/수정 전 전체 풀 유사도 검색 필수. 검증 없는 추가 거부 |
 
 ---
 
@@ -113,6 +114,7 @@
 | **I8** | Reversibility Default | R3+ 변경은 롤백 좌표 필수 |
 | **I9** | Resource Cap | 동일 오류 3회 / 핵심 파일 5개 초과 금지 |
 | **I10** | Time Budget | 50% 초과 시 중간 보고 |
+| **I11** *(v2.1+)* | Quality Preservation Floor | **응답 품질(정확도/속도/완전성/일관성) 베이스라인 하회 금지 — 트레이드오프 불가** |
 
 > **C2에 의거 자동 진화 영구 제외.** 추가/세분화는 가능하나 약화·삭제 불가.
 
@@ -128,6 +130,7 @@
 - **L1.1 Env Fingerprint** — OS, shell, Node, EOL, 인코딩 1줄 요약
 - **L1.2 Truth First** — 모든 코드 인용 전 검증, 미확인은 "(미검증)"
 - **L1.3 In-flight Work Check** — `git status` / 미커밋 / stash / 알 수 없는 브랜치
+- **L1.4 Session Recall** *(experimental, since 2026-05-12)* — 사용자가 "예전에/지난번/그때" 등 회상 키워드 명시 발화 시 `search_session_transcripts` 우선 호출. **자동 트리거 금지** (토큰 절약). I11 위반 감지 시 즉시 비활성화
 
 ### Phase 2 — 계획
 - **L2.1 Blast Radius** — 5종 영향 범위 표
@@ -205,8 +208,12 @@
 ## 8. 도메인 규칙 (요약)
 
 - **Delphi → Node.js (D1~D7)**: await 검증, sync API 금지, 'error' 핸들러 강제, JSDoc, `var`·콜백헬 금지
-- **한국어/Windows (K1~K5)**: BOM·EOL 보존, `path.join` 강제, cp949 콘솔 인지
+- **한국어/Windows (K1~K6)**: BOM·EOL 보존, `path.join` 강제, cp949 콘솔 인지, **K6: CP949 Delphi 파일(.pas/.dfm/.dpr) 편집은 Read/Edit/Write 도구 금지 — PowerShell + 명시 cp949로만 (사고 I-2026-05-08-1)**
 - **Git/VCS (G1~G5)**: 브랜치 격리, main 직접 push 금지, 커밋 메시지 룰 ID, 시크릿 자동 제외, **`~/.claude/` git 사용 시 런타임 데이터 엄격 제외**
+- **빌드 더미 (B1~B3)** *(2026-05-12 신설)*:
+  - **B1 Build Artifact Cleanup**: PyInstaller/webpack/vite/cargo 등 빌드 직후, 작업 폴더(`build*`, `dist_v*`, `_support`, `__pyinstaller_*`)는 canonical dist 카피 완료 후 즉시 삭제. 트리거: 빌드 산출물을 canonical 위치로 복제한 직후. 측정: backend/frontend 루트에 `dist`/`frontend_dist`만 남아있는지. 위반: AR 발동 없이 후속 cleanup task로 분리.
+  - **B2 Backup Whitelist**: 명시적 백업 (`*.bak.<날짜>`, `*_archive_<날짜>`)은 보존. 정리 대상이 백업인지 모호하면 사용자 확인 (HA1).
+  - **B3 Pre-cleanup Audit**: `rm -rf <dir>` 직전 (a) canonical dist의 mtime이 신규 (b) 삭제 대상 size 보고 (c) 잘못 삭제 시 복구 명령 (rebuild) 첨부. 사용자 명시 승인 후 실행.
 - **UI/UX (U1~U4)**: 디자인 토큰 R4, 접근성 속성 보존, 반응형 시각 확인
 - **데이터/마이그레이션 (M1~M4)**: forward-only, DROP은 R5, 운영 DB 직접 금지
 - **의존성 (P1~P4)**: lockfile 동시 커밋, 신규 패키지 4요소 보고, 타이포스쿼팅 차단

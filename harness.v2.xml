@@ -37,6 +37,7 @@
     <C7>evolution_charter 자체는 불변. 변경 시 v3.0 신규 발의 절차 필요.</C7>
     <C8>자동 라이프사이클(승격/아카이브) 동작은 항상 의사결정 보고서에 명시. 묵시 변경 금지.</C8>
     <C9>글로벌 메트릭 풀 — 모든 워크스페이스의 학습이 단일 풀에 누적. 프로젝트별 분리 풀 금지(v2.2 후보).</C9>
+    <C10>하네스에 새 규칙 추가/수정 전, active/experimental/proposals/archived 전체 풀에서 의미·키워드·트리거 유사도 검색 필수. 발견 시 (a) 통합 가능 → 기존 룰 확장 (b) 분리 필요 → 차이점 명시 후 추가. 검증 없는 추가는 거부. 본 변경(2026-05-12) 자체에 자기 적용 완료.</C10>
   </evolution_charter>
 
   <!-- ════════════════════════════════════════════════════════════
@@ -253,6 +254,13 @@
       <I10 name="Time_Budget">
         예상 시간 50% 초과 시점에 진행 상황·잔여·블로커 중간 보고.
       </I10>
+      <I11 name="Quality_Preservation_Floor">
+        모든 진화·확장·최적화·자동화 시스템은 응답의 (정확도/속도/완전성/일관성) 4축 베이스라인을 하회하면 안 됨.
+        토큰 절약·기능 추가가 품질 저하의 트레이드오프가 될 수 없다 — 본질이 흐려지면 AI 사용 의미 자체가 사라짐.
+        측정 — 정확도: 환각·미검증 인용 발생률 / 속도: 첫 응답까지 평균 시간 / 완전성: 보고서 6요소 누락률 / 일관성: 동일 패턴 답변 분산.
+        위반 시: 해당 확장/최적화 즉시 비활성화 + 직전 상태 복원 + 사후 분석 보고. 베이스라인 회복 전까지 재시도 금지.
+        C2에 의거 자동 진화 영구 제외 (약화·삭제 불가, 강화만 허용).
+      </I11>
     </invariants>
 
     <!-- ─── 2.C 도메인 룰 ─── -->
@@ -274,6 +282,24 @@
         <K3>경로는 path.join/path.resolve만 사용. "C:\..." 하드코딩 금지.</K3>
         <K4>한글/공백/괄호 파일명 quoting 누락에 주의.</K4>
         <K5>Windows 콘솔 기본 cp949. UTF-8 가정 금지(chcp 65001 또는 명시적 인코딩 옵션).</K5>
+        <K6 name="CP949_File_Edit_Protocol" added="2026-05-08" source="incident:I-2026-05-08-1">
+          Delphi/레거시 한국어 .pas/.dfm/.dpr/.inc 파일 편집 절대 프로토콜.
+          [트리거] 파일이 noBOM이고 한글 깨짐 의심(Read 결과에 U+FFFD ����/占쏙옙) — 또는 확장자가 .pas/.dfm/.dpr/.inc.
+          [필수 절차]
+            1) 편집 전 PowerShell로 인코딩 확정:
+               [System.Text.Encoding]::GetEncoding(949).GetString([IO.File]::ReadAllBytes($f))
+               결과가 정상 한글이면 CP949 확정.
+            2) Read/Edit/Write 도구 사용 금지 (UTF-8 강제 변환으로 한글 손실).
+            3) 편집은 PowerShell here-string + 명시 인코딩으로만:
+               $cp949 = [System.Text.Encoding]::GetEncoding(949)
+               $txt = $cp949.GetString([IO.File]::ReadAllBytes($f))
+               $new = $txt.Replace($old, $new)
+               [IO.File]::WriteAllBytes($f, $cp949.GetBytes($new))
+            4) 작업 후 같은 방식으로 재읽어 한글이 유지됐는지 검증 (V8-style 시각 확인).
+            5) 추가하는 한글 주석/문자열은 cp949 표현 가능 글자만 사용.
+          [위반 시] 즉시 AR2 발동 + L7.4 사고 기록 + 사용자에 백업 복원 요청.
+          [측정] CP949 파일 편집 횟수 / 깨짐 발생 횟수.
+        </K6>
       </korean_windows_environment>
 
       <git_vcs>
@@ -356,8 +382,18 @@
        ════════════════════════════════════════════════════════════ -->
   <experimental_rules>
     <!-- 진입 조건: proposals 의 후보가 (3회 누적 OR 사용자 승인) 충족 시 이동.
-         승격 조건: hits ≥ 5 AND violations = 0 AND age ≥ 30일 → active.
-         (현재 비어 있음 — 운영 중 채워짐) -->
+         승격 조건: hits ≥ 5 AND violations = 0 AND age ≥ 30일 → active. -->
+    <rule id="L1.4_session_recall" state="experimental" since="2026-05-12" trial_count="0"
+          phase_target="1_recon" source="user_request_2026-05-12">
+      <when>사용자가 회상 키워드("예전에", "지난번", "그때", "이전에", "기억나", "전에 했던") 명시 발화 시.</when>
+      <what>mcp__ccd_session_mgmt__search_session_transcripts 를 우선 호출하여 관련 과거 세션 검색. 검색 없이 추측 답변 금지.</what>
+      <how>키워드 추출 → search → 상위 1~3개 발췌 → 답변에 출처(세션 ID + 일자) 명시. 자동 트리거 금지(토큰 절약): 명시 키워드 발화 시에만 호출.</how>
+      <evaluation_criteria>
+        - 5회 이상 발화 + 검색 유용도(사용자 만족) ≥ 70% + 30일 경과 → active 승격 (AL1)
+        - false positive 발생률 ≥ 30% → 정제 또는 deprecate (AL3)
+        - I11(품질 베이스라인) 위반 감지 → 즉시 비활성화
+      </evaluation_criteria>
+    </rule>
   </experimental_rules>
 
   <!-- ════════════════════════════════════════════════════════════
@@ -423,6 +459,25 @@
         측정: harness:metric commit 빈도 (세션당 0회 → 1회 이상)
       </draft>
     </p>
+    <p id="I-2026-05-08-1" raised="2026-05-08" trigger="AR2_rollback"
+       evidence="session:KEBIA00001_moduleseq_patch" trial="incident">
+      <incident>
+        [WHAT] Delphi 한글(CP949) 파일 2개의 한글 코멘트/문자열 전체 손실.
+          파일: BMS.IA.IFMS.Control.pas(78561B), uBMS.Monitoring.pas(14412B)
+          위치: D:\U\91. Program Utility\920. CMS Agent Module\2023-06-01\Hana\
+        [WHY] Read 도구가 CP949 바이트를 UTF-8로 디코딩 → 한글이 U+FFFD(����)로 변환 →
+              그 깨진 글자를 Edit의 old/new_string에 그대로 사용 → Edit가 전체 파일을
+              UTF-8로 재기록 → 모든 한글이 0xEF 0xBF 0xBD 시퀀스로 영구 손실.
+              백업/__history 없음 → 자동 복원 불가.
+        [VIOLATED] I3(Encoding_Fidelity), L3.3(Encoding_Lock), AR2 미발동(편집 직후 인코딩 검증 누락)
+        [LESSON]
+          - noBOM + 한글 깨짐 = CP949 확정 시그널이지만, 무시하고 편집함.
+          - Read 도구 출력만 보고 "���� 같은 글자가 원본에 있나" 확인 안 함.
+          - 인코딩 락(L3.3)을 byte BOM/EOL만 체크, 코드페이지는 체크 안 함.
+        [RESOLUTION] 신규 룰 K6 (CP949 편집 프로토콜) active 등록. AR2 트리거에 코드페이지 체크 추가 검토.
+        [PROMOTION] 즉시 K6 active로 승격(사용자 명시 승인 P2). trial 카운트 면제.
+      </incident>
+    </p>
   </proposals>
 
   <!-- ════════════════════════════════════════════════════════════
@@ -439,19 +494,19 @@
        L7.5에 의해 작업 종료 시 갱신.
        last_fired 형식: "never" | "YYYY-MM-DD"
        ════════════════════════════════════════════════════════════ -->
-  <rule_metrics last_updated="2026-05-04">
-    <m id="L0.1" hits="3"  violations="2" last_fired="2026-05-04"/>
+  <rule_metrics last_updated="2026-05-12">
+    <m id="L0.1" hits="4"  violations="2" last_fired="2026-05-08"/>
     <m id="L0.2" hits="0"  violations="0" last_fired="never"/>
-    <m id="L1.1" hits="2"  violations="0" last_fired="2026-05-04"/>
-    <m id="L1.2" hits="60" violations="0" last_fired="2026-05-04"/>
-    <m id="L1.3" hits="2"  violations="0" last_fired="2026-05-04"/>
+    <m id="L1.1" hits="3"  violations="0" last_fired="2026-05-08"/>
+    <m id="L1.2" hits="62" violations="0" last_fired="2026-05-08"/>
+    <m id="L1.3" hits="3"  violations="0" last_fired="2026-05-08"/>
     <m id="L2.1" hits="5"  violations="0" last_fired="2026-05-04"/>
     <m id="L2.2" hits="3"  violations="0" last_fired="2026-05-04"/>
-    <m id="L2.3" hits="2"  violations="1" last_fired="2026-05-04"/>
+    <m id="L2.3" hits="3"  violations="1" last_fired="2026-05-08"/>
     <m id="L3.1" hits="2"  violations="3" last_fired="2026-05-04"/>
     <m id="L3.2" hits="0"  violations="0" last_fired="never"/>
-    <m id="L3.3" hits="3"  violations="1" last_fired="2026-05-04"/>
-    <m id="L4.1" hits="40" violations="0" last_fired="2026-05-04"/>
+    <m id="L3.3" hits="4"  violations="2" last_fired="2026-05-08"/>
+    <m id="L4.1" hits="41" violations="0" last_fired="2026-05-08"/>
     <m id="L4.2" hits="20" violations="0" last_fired="2026-05-04"/>
     <m id="L4.3" hits="15" violations="0" last_fired="2026-05-04"/>
     <m id="L4.4" hits="12" violations="0" last_fired="2026-05-04"/>
@@ -461,8 +516,8 @@
     <m id="L7.1" hits="3"  violations="0" last_fired="2026-05-04"/>
     <m id="L7.2" hits="1"  violations="0" last_fired="2026-05-04"/>
     <m id="L7.3" hits="0"  violations="0" last_fired="never"/>
-    <m id="L7.4" hits="6"  violations="0" last_fired="2026-05-04"/>
-    <m id="L7.5" hits="1"  violations="0" last_fired="2026-05-04"/>
+    <m id="L7.4" hits="7"  violations="0" last_fired="2026-05-08"/>
+    <m id="L7.5" hits="2"  violations="0" last_fired="2026-05-08"/>
     <m id="V1"   hits="0" violations="0" last_fired="never"/>
     <m id="V2"   hits="0" violations="0" last_fired="never"/>
     <m id="V3"   hits="0" violations="0" last_fired="never"/>
@@ -473,7 +528,7 @@
     <m id="V8"   hits="0"  violations="0" last_fired="never"/>
     <m id="I1"   hits="55" violations="0" last_fired="2026-05-04"/>
     <m id="I2"   hits="2"  violations="0" last_fired="2026-05-04"/>
-    <m id="I3"   hits="25" violations="2" last_fired="2026-05-04"/>
+    <m id="I3"   hits="26" violations="3" last_fired="2026-05-08"/>
     <m id="I4"   hits="12" violations="0" last_fired="2026-05-04"/>
     <m id="I5"   hits="0"  violations="0" last_fired="never"/>
     <m id="I6"   hits="40" violations="1" last_fired="2026-05-04"/>
@@ -493,6 +548,7 @@
     <m id="K3"   hits="6"  violations="0" last_fired="2026-05-04"/>
     <m id="K4"   hits="10" violations="0" last_fired="2026-05-04"/>
     <m id="K5"   hits="3"  violations="0" last_fired="2026-05-04"/>
+    <m id="K6"   hits="0"  violations="1" last_fired="2026-05-08"/>
     <m id="G1"   hits="0" violations="0" last_fired="never"/>
     <m id="G2"   hits="0" violations="0" last_fired="never"/>
     <m id="G3"   hits="0" violations="0" last_fired="never"/>
@@ -511,7 +567,7 @@
     <m id="P3"   hits="0" violations="0" last_fired="never"/>
     <m id="P4"   hits="0" violations="0" last_fired="never"/>
     <m id="AR1"  hits="0" violations="0" last_fired="never"/>
-    <m id="AR2"  hits="0" violations="0" last_fired="never"/>
+    <m id="AR2"  hits="1" violations="0" last_fired="2026-05-08"/>
     <m id="AR3"  hits="0" violations="0" last_fired="never"/>
     <m id="AR4"  hits="0" violations="0" last_fired="never"/>
     <m id="AR5"  hits="0" violations="0" last_fired="never"/>
@@ -520,6 +576,8 @@
     <m id="HA3"  hits="0" violations="0" last_fired="never"/>
     <m id="HA4"  hits="0" violations="0" last_fired="never"/>
     <m id="HA5"  hits="0" violations="0" last_fired="never"/>
+    <m id="I11"  hits="0" violations="0" last_fired="never"/>
+    <m id="L1.4" hits="0" violations="0" last_fired="never"/>
   </rule_metrics>
 
   <!-- ════════════════════════════════════════════════════════════
