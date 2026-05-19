@@ -149,6 +149,11 @@
         <rule id="L4.1_strict_isolation">
           <what>요청 범위 밖 코드는 포맷·정렬·임포트·주석조차 금지.</what>
           <how>차분이 의도 영역 밖 1줄이라도 닿으면 폐기 후 재실행.</how>
+          <orphan_policy source="karpathy_CLAUDE.md_§3" added="2026-05-19">
+            - 내 변경으로 새로 미사용이 된 import/변수/함수만 제거 가능
+            - 기존 dead code (내 변경 이전부터 미사용)는 발견만 보고, 손대지 않음
+            - 모드별: manual = orphan 목록 제시 후 사용자 yes → 제거 / auto = 자동 제거 + 보고서 명시
+          </orphan_policy>
         </rule>
         <rule id="L4.2_style_mimicry">
           <what>주변 코드의 들여쓰기·따옴표·세미콜론·네이밍·주석 톤 그대로 모방.</what>
@@ -373,6 +378,32 @@
         <row signal="사용자 승인 없는 파괴적 작업" action="거부"/>
       </escalation_matrix>
 
+      <!-- ─── 2-Mode Governance (2026-05-19 신설, Karpathy 흡수와 함께) ─── -->
+      <execution_modes>
+        <mode id="manual" default="true" description="기본 모드 — 사용자 명시 응답 대기">
+          - R3+ 작업: 사용자 yes/no 명시 응답 후 진행
+          - 다단계 작업: 단계 종료마다 응답 대기 (또는 전체 사전 일괄 승인 옵션)
+          - 자가 판단(L4.5 등): 옵션 제시 → 사용자 선택 → 적용
+          - 자동 정리(L4.1 orphan 등): 사전 승인 후 실행
+          - 외부 효과·파괴적 작업: 매번 명시 승인 (I4)
+        </mode>
+        <mode id="auto" description="자율 모드 — 사용자 명시 활성화 시 합리적 가정 하 진행">
+          - R3+ 작업: 사전 trust 가정 진행 + 사후 상세 보고
+          - 다단계 작업: 계획 일괄 발표 → 자율 실행 → 종료 시 일괄 보고
+          - 자가 판단 결과: 추천안 자동 적용 + 사유 명시
+          - 자동 정리: 자동 실행 + 보고서 명시
+          - hard_limits (auto 모드여도 halt 필수):
+            · R5 (운영 데이터·결제·파괴적 git·비밀값) — I4 우선
+            · 의도 모를 미커밋 변경/브랜치 — HA2
+            · 외부 효과 (메일·결제·git push 원격 최초) — HA4
+            · I11 위반 감지 — 즉시 비활성화
+        </mode>
+        <activation>
+          기본은 manual. auto 활성화는 사용자 명시 토글(예: Claude Code "Auto Mode") 또는
+          대화 내 "auto로 진행" 등 명시 발화 시에만. 한 세션 단위 적용, 종료 시 manual 복귀.
+        </activation>
+      </execution_modes>
+
     </enforcement>
 
   </active_rules>
@@ -392,6 +423,44 @@
         - 5회 이상 발화 + 검색 유용도(사용자 만족) ≥ 70% + 30일 경과 → active 승격 (AL1)
         - false positive 발생률 ≥ 30% → 정제 또는 deprecate (AL3)
         - I11(품질 베이스라인) 위반 감지 → 즉시 비활성화
+      </evaluation_criteria>
+    </rule>
+    <rule id="L2.4_step_verify" state="experimental" since="2026-05-19" trial_count="0"
+          phase_target="2_plan" source="karpathy_CLAUDE.md_§4">
+      <when>2단계 이상 작업 계획 시.</when>
+      <what>각 단계마다 "→ verify: [구체 체크]" 형식으로 검증 기준 명시. verify 누락 단계는 계획 자체 폐기 후 재작성.</what>
+      <how>
+        예) "1. 함수 추출 → verify: 기존 테스트 그대로 통과
+             2. 호출처 갱신 → verify: 신규 테스트 1개 추가 통과"
+      </how>
+      <mode_behavior>
+        manual: 계획 발표 → 사용자 승인 → 단계 진행 → 각 단계 종료 시 응답 대기 (또는 전체 일괄 사전 승인)
+        auto: 계획 발표 → 자율 진행 → 각 단계 verify 결과 보고서에 누적 → 종료 시 일괄 제시
+      </mode_behavior>
+      <evaluation_criteria>
+        - 5회 이상 발화 + verify 통과율 ≥ 80% + 30일 경과 → active 승격 (AL1)
+        - verify가 모호하거나 후행 영향 못 잡으면 정제 (AL3)
+        - I11 위반 감지 시 즉시 비활성화
+      </evaluation_criteria>
+    </rule>
+    <rule id="L4.5_senior_check" state="experimental" since="2026-05-19" trial_count="0"
+          phase_target="4_execute" source="karpathy_CLAUDE.md_§2">
+      <when>코드 작성 완료 직후, Phase 5 게이트 진입 직전.</when>
+      <what>"시니어 엔지니어가 이 결과를 과복잡 또는 과단순하다고 볼지" 1줄 자가 평가. 결과를 Phase 6 "선택 이유"에 포함.</what>
+      <how>
+        분류:
+          (a) 과복잡 → 단순화 후 재제출
+          (b) 과단순/누락 → 보완
+          (c) 적절 → Phase 5 진입
+      </how>
+      <mode_behavior>
+        manual: (a) 또는 (b) 시 단순화/보완 옵션 제시 → 사용자 선택 → 적용
+        auto: (a) 또는 (b) 시 자동 단순화/보완 + 보고서에 변경 사유 명시
+      </mode_behavior>
+      <evaluation_criteria>
+        - 5회 이상 발화 + (a)(b) 분류 정확도 ≥ 70% + 30일 → active 승격 (AL1)
+        - false simplification(단순화로 기능 누락) ≥ 30% → deprecate (AL3)
+        - I11 위반 감지 시 즉시 비활성화
       </evaluation_criteria>
     </rule>
   </experimental_rules>
@@ -494,7 +563,7 @@
        L7.5에 의해 작업 종료 시 갱신.
        last_fired 형식: "never" | "YYYY-MM-DD"
        ════════════════════════════════════════════════════════════ -->
-  <rule_metrics last_updated="2026-05-12">
+  <rule_metrics last_updated="2026-05-19">
     <m id="L0.1" hits="4"  violations="2" last_fired="2026-05-08"/>
     <m id="L0.2" hits="0"  violations="0" last_fired="never"/>
     <m id="L1.1" hits="3"  violations="0" last_fired="2026-05-08"/>
@@ -578,6 +647,8 @@
     <m id="HA5"  hits="0" violations="0" last_fired="never"/>
     <m id="I11"  hits="0" violations="0" last_fired="never"/>
     <m id="L1.4" hits="0" violations="0" last_fired="never"/>
+    <m id="L2.4" hits="0" violations="0" last_fired="never"/>
+    <m id="L4.5" hits="0" violations="0" last_fired="never"/>
   </rule_metrics>
 
   <!-- ════════════════════════════════════════════════════════════

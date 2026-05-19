@@ -136,6 +136,7 @@
 - **L2.1 Blast Radius** — 5종 영향 범위 표
 - **L2.2 Risk Assignment** — R1~R5 + 근거
 - **L2.3 Rollback Strategy** — 롤백 좌표 명시 (R3+ 필수)
+- **L2.4 Step Verify** *(experimental, since 2026-05-19)* — 2단계 이상 작업 시 각 단계에 "→ verify: [구체 체크]" 명시. verify 누락 단계는 계획 폐기·재작성
 
 ### Phase 3 — 실행 직전
 - **L3.1 Baseline Capture** — 테스트/린트/타입/빌드/벤치 베이스라인
@@ -143,10 +144,11 @@
 - **L3.3 Encoding Lock** — (인코딩, BOM, EOL) 기록 + 100% 복원
 
 ### Phase 4 — 실행
-- **L4.1 Strict Isolation** — 요청 범위 밖 1줄도 금지
+- **L4.1 Strict Isolation** — 요청 범위 밖 1줄도 금지. **Orphan 정책**: 내 변경이 만든 미사용만 제거, 기존 dead code는 보고만
 - **L4.2 Style Mimicry** — 주변 코드 스타일 모방
 - **L4.3 Atomic Unit** — 한 커밋 = 한 논리 변경, 핵심 파일 5개 이내
 - **L4.4 No Phantom APIs** — 호출 직전 실존 검증
+- **L4.5 Senior Check** *(experimental, since 2026-05-19)* — 코드 작성 완료 직후 "시니어 엔지니어가 과복잡/과단순으로 볼지" 자가 평가. (a) 과복잡 → 단순화 (b) 과단순/누락 → 보완 (c) 적절 → 진행
 
 ### Phase 5 — 검증 게이트
 
@@ -195,7 +197,22 @@
 
 → **작업 중지, 사용자 답변 전까지 도구 호출 금지.**
 
-### 7.3 완료 정의 (DoD)
+### 7.3 실행 모드 (Manual / Auto) *(v2.1+, 2026-05-19)*
+
+| 모드 | 활성화 | 핵심 동작 |
+|---|---|---|
+| **Manual** (기본) | 항상 | R3+ 매번 사용자 응답 대기 · 다단계 단계마다 확인 · 자가 판단은 옵션 제시 후 선택 · 자동 정리는 사전 승인 |
+| **Auto** | 사용자 명시 토글 OR "auto로 진행" 발화 | R3+ trust 가정 진행 + 사후 보고 · 다단계 일괄 발표 후 자율 · 자가 판단 자동 적용 · 자동 정리 자동 실행 |
+
+**Auto 모드 hard_limits** (auto여도 항상 halt):
+- R5 (운영 데이터/결제/파괴적 git/비밀값) — `I4` 우선
+- 의도 모를 미커밋 변경/브랜치 — `HA2`
+- 외부 효과 (메일·결제·git push 원격 최초) — `HA4`
+- I11 위반 감지 — 즉시 auto 비활성화
+
+세션 종료 시 manual 복귀.
+
+### 7.4 완료 정의 (DoD)
 - **DoD1** V1~V7 통과 (UI 시 V8 포함)
 - **DoD2** 변경 파일 = 의도 파일
 - **DoD3** 보고서 6요소 작성
@@ -214,7 +231,13 @@
   - **B1 Build Artifact Cleanup**: PyInstaller/webpack/vite/cargo 등 빌드 직후, 작업 폴더(`build*`, `dist_v*`, `_support`, `__pyinstaller_*`)는 canonical dist 카피 완료 후 즉시 삭제. 트리거: 빌드 산출물을 canonical 위치로 복제한 직후. 측정: backend/frontend 루트에 `dist`/`frontend_dist`만 남아있는지. 위반: AR 발동 없이 후속 cleanup task로 분리.
   - **B2 Backup Whitelist**: 명시적 백업 (`*.bak.<날짜>`, `*_archive_<날짜>`)은 보존. 정리 대상이 백업인지 모호하면 사용자 확인 (HA1).
   - **B3 Pre-cleanup Audit**: `rm -rf <dir>` 직전 (a) canonical dist의 mtime이 신규 (b) 삭제 대상 size 보고 (c) 잘못 삭제 시 복구 명령 (rebuild) 첨부. 사용자 명시 승인 후 실행.
-- **UI/UX (U1~U4)**: 디자인 토큰 R4, 접근성 속성 보존, 반응형 시각 확인
+- **UI/UX (U1~U7)**: 디자인 토큰 R4, 접근성 속성 보존, 반응형 시각 확인
+  - **U5 Layout Math Audit** *(2026-05-12 신설, 사고 INC-2026-05-12-1)*:
+    CSS grid/flex 변경 또는 컴포넌트의 child 개수 변경 시 (a) container의 `grid-template-columns`/`flex` 컬럼/항목 개수 (b) 실제 DOM children 개수 (c) `position: absolute` child 제외 — 세 값이 일치하는지 정리해서 보고서에 명시. 불일치 발견 시 자동 롤백. 트리거: `.tsx`/`.jsx`에서 grid/flex container의 child 추가·삭제 OR CSS `grid-template-*`/`flex-*` 변경. 측정: Phase 6 보고서에 "Layout Math: container=N cols, DOM children=N (abs N), Δ=0" 한 줄 필수. 위반: AR4 + Phase 6 적색 표기.
+  - **U6 Visual Verification Gate** *(신설)*:
+    UI 변경 후 사용자 보고 전 다음 중 1개 필수: (a) `preview_inspect`로 computed styles + boundingBox 캡처해 본문에 인용, (b) Chrome MCP screenshot 첨부, (c) 도구 불가 시 정직하게 "시각 검증 불가 — 사용자 시각 확인 요청" 보고. 그냥 빌드 성공만으로 "완료" 보고 금지. 위반: AR4 + 다음 응답에서 즉시 검증 후 재보고.
+  - **U7 CSS-Driven Layout** *(신설)*:
+    레이아웃·간격·정렬은 CSS class로. JSX 인라인 `style={{...}}`은 (a) 동적 값(state, props) (b) 1회성 색·아이콘만 허용. 인라인 padding/margin/display/grid 발견 시 → 즉시 className으로 리팩터링. 트리거: 인라인 style에 layout property 발견. 측정: PR/응답 내 `style={{.*display\|grid\|flex\|padding\|margin}}` 매치 0건. 위반: 후속 리팩터링 task로 분리.
 - **데이터/마이그레이션 (M1~M4)**: forward-only, DROP은 R5, 운영 DB 직접 금지
 - **의존성 (P1~P4)**: lockfile 동시 커밋, 신규 패키지 4요소 보고, 타이포스쿼팅 차단
 
