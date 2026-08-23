@@ -113,6 +113,20 @@
           <what>git status / 미커밋 변경 / stash / 알 수 없는 브랜치 확인.</what>
           <how>의도 모를 작업 발견 시 사용자 확인 전까지 파괴적 명령 금지.</how>
         </rule>
+        <rule id="L1.5_grep_liveness_verification" added="2026-06-08" source="incident:I-2026-06-08-1">
+          <when>grep/검색 매치 줄을 "사용됨/호출됨/실행됨"으로 인용하거나 그것을 근거로 결론(사용 여부·실행 여부) 내리기 직전. 분석·답변·변경 모든 시점에 적용.</when>
+          <what>매치된 줄이 실제 live code인지 전후 맥락(최소 ±10줄, 필요 시 함수/블록 전체)을 읽어 검증한다. grep은 텍스트만 본다 — 활성 여부는 보지 않는다.</what>
+          <how>
+            필수 4-check:
+            (a) 주석 여부: 라인 `//`·`#`, 블록 `{ }`·`(* *)`·`/* */`, 그리고 Delphi 조건부 컴파일 `{$IFDEF}`/`{$IFNDEF DEBUG}`/`{$IF}` 비활성 분기에 들어있는지.
+            (b) 도달가능성: 선행 `Exit`/`return`/`break`/`raise`/early-out 으로 도달 불가능한 dead code 인지.
+            (c) 정의 vs 호출: 매치가 선언(interface/var/함수 시그니처)인지 실제 호출(invocation)인지 구분.
+            (d) 결론 표기: 비활성이면 "정의만 존재 / 주석 처리됨 / 도달 불가(dead)"로, 활성이면 "활성 호출"로 보고서에 명시.
+          </how>
+          <measurement>grep 기반 "사용 중/실행됨" 주장 1건당 liveness 검증 동반율. 미검증 인용 발생 횟수(목표 0).</measurement>
+          <on_violation>AR7(기존/현재 동작 오판) 발동 + 즉시 정정 + L7.4 사고 기록. 동일 패턴(주석/dead code를 live로 오인) 재발 금지.</on_violation>
+          <cross_ref>L4.6(a) 호출지점 grep(변경 직전 한정)의 분석·답변 시점 확장. L1.2(Truth First, 존재 검증)에 liveness(활성 검증) 차원 추가.</cross_ref>
+        </rule>
       </phase>
 
       <phase id="2_plan" name="계획">
@@ -336,6 +350,46 @@
         <P4>메이저 버전 업그레이드는 R4.</P4>
       </dependencies>
 
+      <!-- 하나은행 CMS 코드베이스 참조 지도 — 규칙(trigger/violation)이 아닌 순수 참조 정보.
+           사용자 원 설명을 그대로 믿지 않고 각 드라이브를 직접 탐색(Explore 에이전트 3종 병렬)해 검증함(I1/L1.2). -->
+      <hana_cms_codebase_map added="2026-08-19" source="user_request_verified_by_exploration">
+        <K verdict="일치">
+          Branch(영업점) 직접사용 업무화면(CS화면) 담당. "90. Program\03. PT\" 하위 PAY(자금지급)/REC(자금수납)/
+          SET(설정)/POS(큰글씨)/BCA(법인카드)/REP(보고서) 등 모듈 + "05. Popup" 팝업 화면들.
+          검증: 이번 세션에서 PAY0105010(대량이체), POS0302010(승인내역조회), SET0102010_02(조회순번설정) 등
+          다수 파일을 직접 읽고 수정하며 반복 확인됨.
+        </K>
+        <U verdict="부분일치">
+          "실행프로그램" 부분은 정확 — "91. Program Utility\920. CMS Agent Module\(2019-05-28/2021-01-01 Patch/
+          2023-06-01)\Hana\..." 계열에 은행별 개별 실행 프로그램(.dpr, 예: KEBSASET0102010_01.dpr) 수백 개 소재 +
+          "04. AutoBuildNumber"의 exe 빌드번호 자동생성 유틸. 단 "스케줄 모듈"(엔진) 자체는 U에 없음 —
+          uAgent.Common.Schedule.pas에 스케줄 관련 데이터 구조(ISchedule, TCustomerServiceScheduleResult)만 존재,
+          실제 스케줄러 엔진은 Y에 있음. 참고: 기존 incident I-2026-05-08-1(CP949 인코딩 손실사고, BMS.IA.IFMS.Control.pas
+          등)도 이 경로(D:\U\91. Program Utility\920. CMS Agent Module\2023-06-01\Hana\) 소재.
+        </U>
+        <X verdict="일치">
+          프레임워크/공통모듈/서드파티 라이브러리 전용, 업무화면 없음. 최상위 7개 폴더 전수 확인:
+          01.Package(LockBox-3.5.2 등 서드파티 암호화 라이브러리), 02.Library, 04.AutoBuildNumber, 80.Bin,
+          81.Framework(uApp.Authorization/DBMS/Common/Communication.pas 등 앱 베이스클래스),
+          82.Framework Utility(ShareModule/TransDataModule/iBBEBridgeD7 — README: "Delphi7에서만 컴파일"),
+          88.Framework Program Utility(DevExpress Skin/Addon, Update/Launcher). 저장소 전체 개요 문서는 없음.
+        </X>
+        <Y verdict="부분일치">
+          "U가 만든 스케줄모듈을 Y가 실행한다"는 역할분담의 코드적 근거 없음. 실제로는 Y 자체가 스케줄
+          정의+실행을 모두 갖춘 자기완결형 구조: "91. Program Utility\100. Agent\101. CMS Agent for Hana/
+          CashBoard/Webcash" 계열에 CMSAgent_Config.exe(정의: 시스템관리→모니터링/예약관리/작업관리)와
+          CMSAgent_Scheduler.exe(실행, 자동실행)가 같은 트리에 공존. uScheduler.Manager.pas의 ExecuteModule은
+          CreateProcess(gApp.Config.SystemPath+실행파일명)로 자체 설치경로 내 exe를 구동 — D:\U 참조 흔적 없음.
+        </Y>
+        <verified_discrepancy>
+          사용자 원 설명("U=스케줄모듈 담당, Y=U가 만든 스케줄모듈을 실행")은 실측과 다름.
+          정정: U=실행프로그램(exe) 저장소 + 스케줄 데이터구조만 보유(엔진 없음) / Y=스케줄 정의(Config)와
+          실행(Scheduler)을 전부 자체 보유하는 자기완결형 구조. "U→Y" 방향의 참조·의존 관계는 코드상 발견 안 됨.
+          향후 U/Y 관련 작업 시 이 정정된 이해를 기준으로 삼을 것 — "U가 스케줄을 만든다"는 전제로 코드를
+          찾지 말 것(존재하지 않음).
+        </verified_discrepancy>
+      </hana_cms_codebase_map>
+
     </domain_rules>
 
     <!-- ─── 2.D 강제 메커니즘 ─── -->
@@ -547,6 +601,36 @@
         [PROMOTION] 즉시 K6 active로 승격(사용자 명시 승인 P2). trial 카운트 면제.
       </incident>
     </p>
+    <p id="I-2026-06-08-1" raised="2026-06-08" trigger="user_correction"
+       evidence="session:K_softcamp_scnetf2_analysis" trial="incident">
+      <incident>
+        [WHAT] D:\K 의 SoftCamp 사용 여부 분석 중, grep 매치 줄(uLoginIntro.pas:718-739, uMainBranch.pas:338-404)만 보고
+          "로그인 시 SoftCamp 방화벽이 자동 실행된다"고 단정. 사용자가 "주석 여부 확인했냐"고 지적.
+        [WHY] 실제로는 두 호출부 모두 비활성:
+          - uMainBranch: `{$IFNDEF DEBUG} { ... {} {$ENDIF}` 블록 주석 + 조건부 컴파일로 이중 비활성
+            ("SC 방화벽 라이브러리 재배포 예정" 주석).
+          - uLoginIntro: Button7Click 핸들러 도입부 `Exit;` 이후라 도달 불가(dead code), 버튼도 Visible:=False.
+          grep은 텍스트만 매치하고 주석/도달가능성을 보지 않는데, 맥락 확인 없이 live 호출로 오인함.
+        [VIOLATED] I1(Truthfulness), L4.6(a) 정신(호출지점 맥락 미검증). 기존엔 분석 시점 liveness 룰 부재.
+        [LESSON] grep 매치 = "텍스트 존재"일 뿐 "실행됨"이 아니다. 주석/조건부컴파일/Exit-후-dead 를 반드시 가린다.
+        [RESOLUTION] 신규 룰 L1.5(Grep Liveness Verification) active 등록 + AR7 연계. 사용자 명시 승인(P2)으로 trial 면제.
+      </incident>
+    </p>
+    <p id="I-2026-07-12-1" raised="2026-07-12" trigger="AR7"
+       evidence="session:AutoSB_loop_iter9_risk_watch" trial="incident">
+      <incident>
+        [WHAT] AutoSB main.py lifespan에 _risk_watch_loop 추가하며 asyncio import 누락.
+          V1을 `python -c "from app.main import app"` 로만 검증 → import는 모듈 로드만 하고
+          함수 본문은 실행 안 되므로 NameError 미탐. 깨진 exe가 배포됨(다음 회차 스모크에서 발견).
+        [WHY] (1) V1 import-check는 startup-path(lifespan/이벤트훅) 코드의 런타임 오류를 못 잡음.
+          (2) exe 배포 시 부팅 스모크를 생략한 회차가 있었음(회차9 후 배포는 echo만).
+        [VIOLATED] V4 정신(신규 실패 0), L4.6(d) 기존 동작 보존 증명 불충분.
+        [LESSON] lifespan·startup 경로를 만졌으면 "실제 부팅 + /api/health 200"까지가 V1이다.
+          모든 exe 배포는 예외 없이 부팅 스모크 포함 (이번 세션 표준 절차로 복귀).
+        [RESOLUTION] 제안 룰 V1b(Boot Smoke Gate): startup-path 변경 시 uvicorn 실부팅 검증 의무.
+          동일 세션 내 재발 방지 적용 완료.
+      </incident>
+    </p>
   </proposals>
 
   <!-- ════════════════════════════════════════════════════════════
@@ -563,30 +647,33 @@
        L7.5에 의해 작업 종료 시 갱신.
        last_fired 형식: "never" | "YYYY-MM-DD"
        ════════════════════════════════════════════════════════════ -->
-  <rule_metrics last_updated="2026-05-19">
-    <m id="L0.1" hits="4"  violations="2" last_fired="2026-05-08"/>
-    <m id="L0.2" hits="0"  violations="0" last_fired="never"/>
-    <m id="L1.1" hits="3"  violations="0" last_fired="2026-05-08"/>
-    <m id="L1.2" hits="62" violations="0" last_fired="2026-05-08"/>
-    <m id="L1.3" hits="3"  violations="0" last_fired="2026-05-08"/>
-    <m id="L2.1" hits="5"  violations="0" last_fired="2026-05-04"/>
-    <m id="L2.2" hits="3"  violations="0" last_fired="2026-05-04"/>
-    <m id="L2.3" hits="3"  violations="1" last_fired="2026-05-08"/>
-    <m id="L3.1" hits="2"  violations="3" last_fired="2026-05-04"/>
+  <rule_metrics last_updated="2026-08-19">
+    <m id="L0.1" hits="29"  violations="2" last_fired="2026-08-24"/>
+    <m id="L0.2" hits="4"  violations="0" last_fired="2026-08-23"/>
+    <m id="L0.3" hits="25" violations="0" last_fired="2026-08-24"/>
+    <m id="L1.1" hits="4"  violations="0" last_fired="2026-08-23"/>
+    <m id="L1.2" hits="89" violations="0" last_fired="2026-08-24"/>
+    <m id="L1.3" hits="10"  violations="0" last_fired="2026-08-24"/>
+    <m id="L1.5" hits="1"  violations="1" last_fired="2026-06-08"/>
+    <m id="L2.1" hits="10"  violations="0" last_fired="2026-08-23"/>
+    <m id="L2.2" hits="8"  violations="0" last_fired="2026-08-23"/>
+    <m id="L2.3" hits="14"  violations="1" last_fired="2026-08-24"/>
+    <m id="L3.1" hits="10"  violations="3" last_fired="2026-08-23"/>
     <m id="L3.2" hits="0"  violations="0" last_fired="never"/>
-    <m id="L3.3" hits="4"  violations="2" last_fired="2026-05-08"/>
-    <m id="L4.1" hits="41" violations="0" last_fired="2026-05-08"/>
-    <m id="L4.2" hits="20" violations="0" last_fired="2026-05-04"/>
+    <m id="L3.3" hits="17"  violations="2" last_fired="2026-08-23"/>
+    <m id="L4.1" hits="47" violations="0" last_fired="2026-08-23"/>
+    <m id="L4.2" hits="23" violations="0" last_fired="2026-08-23"/>
     <m id="L4.3" hits="15" violations="0" last_fired="2026-05-04"/>
-    <m id="L4.4" hits="12" violations="0" last_fired="2026-05-04"/>
+    <m id="L4.4" hits="27" violations="0" last_fired="2026-08-23"/>
     <m id="L6.1" hits="20" violations="3" last_fired="2026-05-04"/>
     <m id="L6.2" hits="15" violations="2" last_fired="2026-05-04"/>
     <m id="L6.3" hits="0"  violations="0" last_fired="never"/>
-    <m id="L7.1" hits="3"  violations="0" last_fired="2026-05-04"/>
+    <m id="L7.1" hits="4"  violations="0" last_fired="2026-08-23"/>
     <m id="L7.2" hits="1"  violations="0" last_fired="2026-05-04"/>
     <m id="L7.3" hits="0"  violations="0" last_fired="never"/>
-    <m id="L7.4" hits="7"  violations="0" last_fired="2026-05-08"/>
-    <m id="L7.5" hits="2"  violations="0" last_fired="2026-05-08"/>
+    <m id="L7.4" hits="8"  violations="0" last_fired="2026-08-23"/>
+    <m id="L7.5" hits="27"  violations="0" last_fired="2026-08-23"/>
+    <m id="L7.6" hits="13" violations="0" last_fired="2026-08-24"/>
     <m id="V1"   hits="0" violations="0" last_fired="never"/>
     <m id="V2"   hits="0" violations="0" last_fired="never"/>
     <m id="V3"   hits="0" violations="0" last_fired="never"/>
@@ -595,12 +682,12 @@
     <m id="V6"   hits="0" violations="0" last_fired="never"/>
     <m id="V7"   hits="0" violations="0" last_fired="never"/>
     <m id="V8"   hits="0"  violations="0" last_fired="never"/>
-    <m id="I1"   hits="55" violations="0" last_fired="2026-05-04"/>
-    <m id="I2"   hits="2"  violations="0" last_fired="2026-05-04"/>
-    <m id="I3"   hits="26" violations="3" last_fired="2026-05-08"/>
-    <m id="I4"   hits="12" violations="0" last_fired="2026-05-04"/>
+    <m id="I1"   hits="81" violations="0" last_fired="2026-08-23"/>
+    <m id="I2"   hits="6"  violations="0" last_fired="2026-08-23"/>
+    <m id="I3"   hits="50" violations="3" last_fired="2026-08-24"/>
+    <m id="I4"   hits="13" violations="0" last_fired="2026-08-23"/>
     <m id="I5"   hits="0"  violations="0" last_fired="never"/>
-    <m id="I6"   hits="40" violations="1" last_fired="2026-05-04"/>
+    <m id="I6"   hits="63" violations="1" last_fired="2026-08-23"/>
     <m id="I7"   hits="8"  violations="0" last_fired="2026-05-04"/>
     <m id="I8"   hits="2"  violations="0" last_fired="2026-05-04"/>
     <m id="I9"   hits="6"  violations="0" last_fired="2026-05-04"/>
@@ -612,7 +699,7 @@
     <m id="D5"   hits="0" violations="0" last_fired="never"/>
     <m id="D6"   hits="0" violations="0" last_fired="never"/>
     <m id="D7"   hits="0" violations="0" last_fired="never"/>
-    <m id="K1"   hits="15" violations="2" last_fired="2026-05-04"/>
+    <m id="K1"   hits="16" violations="2" last_fired="2026-08-23"/>
     <m id="K2"   hits="20" violations="1" last_fired="2026-05-04"/>
     <m id="K3"   hits="6"  violations="0" last_fired="2026-05-04"/>
     <m id="K4"   hits="10" violations="0" last_fired="2026-05-04"/>
@@ -640,15 +727,16 @@
     <m id="AR3"  hits="0" violations="0" last_fired="never"/>
     <m id="AR4"  hits="0" violations="0" last_fired="never"/>
     <m id="AR5"  hits="0" violations="0" last_fired="never"/>
-    <m id="HA1"  hits="0" violations="0" last_fired="never"/>
+    <m id="HA1"  hits="2" violations="0" last_fired="2026-08-23"/>
     <m id="HA2"  hits="0" violations="0" last_fired="never"/>
     <m id="HA3"  hits="0" violations="0" last_fired="never"/>
     <m id="HA4"  hits="0" violations="0" last_fired="never"/>
     <m id="HA5"  hits="0" violations="0" last_fired="never"/>
     <m id="I11"  hits="0" violations="0" last_fired="never"/>
     <m id="L1.4" hits="0" violations="0" last_fired="never"/>
-    <m id="L2.4" hits="0" violations="0" last_fired="never"/>
-    <m id="L4.5" hits="0" violations="0" last_fired="never"/>
+    <m id="L2.4" hits="1" violations="0" last_fired="2026-08-23"/>
+    <m id="L4.5" hits="1" violations="0" last_fired="2026-08-23"/>
+    <m id="L4.6" hits="20" violations="1" last_fired="2026-08-24"/>
   </rule_metrics>
 
   <!-- ════════════════════════════════════════════════════════════
