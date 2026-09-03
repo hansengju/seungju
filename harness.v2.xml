@@ -79,6 +79,42 @@
   </rollback_anchor>
 
   <!-- ════════════════════════════════════════════════════════════
+       SECTION -0.4. PHASE PROGRESSION (G5 대응, Phase 2/3 진입 조건 pinned)
+       ════════════════════════════════════════════════════════════ -->
+  <phase_progression pinned="true" since="2026-09-03">
+    <phase1_status>ACTIVE — 30 응답 실측 (baseline 10 + treatment 20). rollback_anchor.phase1_success_criteria 참조.</phase1_status>
+    <phase2_entry_criteria>
+      전제: Phase 1 성공 판정 통과 (절감 ≥30% AND C11 fallback ≤10% AND I11 위반 0건 AND classifier ≤ target 20%).
+      게이트: 사용자 명시 P2 승인 (C6).
+      확장 항목: L4.7 Anti-Rebrief diff 도구 연결, T4 C10 자동 grep, tier별 AL1 승격 심사 (L-1.1, L-1.2, L-1.3, L-1.5, L-1.6, L1.2.1, L4.7~L4.10, L7.5.1, L7.5.2).
+      종료 조건: 승격 심사 완료 + 30% 절감 지속 유지 (30일).
+    </phase2_entry_criteria>
+    <phase3_entry_criteria gap="G5">
+      전제: Phase 2 완료 30일 안정 운영.
+      게이트: 사용자 명시 P2 승인 (C6) + Privacy Gate (L-3.1) 활성화 필수.
+      필수 사전 조건 (프라이버시 게이트, 절대 우회 금지):
+        (1) profile_whitelist pinned 화이트리스트만 저장 대상
+        (2) L6.3 PII Redaction을 저장 파이프라인 앞단 강제 배치
+        (3) 자동 refine loop는 반드시 C6(사용자 P2) 통과 후 반영, 자동 커밋 금지
+        (4) 세션 종료 시 profile diff 사용자 표시 + opt-out 옵션
+        (5) 90일 미참조 필드 자동 archived
+      확장 항목: class_matrix 자동 refine loop, 사용자 프로파일 축적, tier 판정 heuristic 보조 지표.
+      종료 조건: 자동 학습 loop 90일 안정 운영 + C11 fallback 발생률 5% 이하 지속.
+    </phase3_entry_criteria>
+    <profile_whitelist immutable="true">
+      <allowed>preferred_response_length, tool_familiarity, frequent_domain_categories (카테고리명만, 값 배제)</allowed>
+      <forbidden>비밀값, API 키, 계좌번호, 사업자번호, 주민번호, 카드번호, 이메일 로컬파트, 세션 원문 발화, 프로젝트 상세 정보, 파일 경로, IP 주소</forbidden>
+      <retention>90일 미참조 필드 자동 archived. 사용자 명시 삭제 요청 시 즉시 삭제.</retention>
+      <precedence>C13 Builtin Compliance Precedence의 privacy 규정을 상속. Anthropic 원본 privacy 규정이 최상위.</precedence>
+    </profile_whitelist>
+    <rollback_per_phase>
+      Phase 1 실패 → rollback_anchor 0b320f0로 reset (모든 tier 시스템 원복)
+      Phase 2 실패 → Phase 1 완료 시점 SHA로 reset (Phase 2 확장만 원복, tier 시스템 유지)
+      Phase 3 실패 → Phase 2 완료 시점 SHA로 reset (자동 학습만 원복, tier + 확장 유지). user_profile 저장분 전량 삭제.
+    </rollback_per_phase>
+  </phase_progression>
+
+  <!-- ════════════════════════════════════════════════════════════
        SECTION 0. 우선순위 (충돌 시 적용 순서)
        ════════════════════════════════════════════════════════════ -->
   <priority_order>
@@ -657,6 +693,26 @@
       </evaluation_criteria>
     </rule>
 
+    <!-- ─── Phase 3 진입 게이트 (G5 대응, dormant until Phase 2 완료) ─── -->
+    <rule id="L-3.1" name="Privacy Gate" phase_target="3_persist" state="dormant" since="2026-09-03" activates_at="phase2_complete" gap="G5">
+      <trigger>Phase 2 완료 판정 후 Phase 3(자동 학습·user_profile 축적) 진입 시 활성화</trigger>
+      <what>사용자 프로파일·회상 저장 파이프라인 앞단에 프라이버시 게이트 배치. phase_progression.profile_whitelist를 절대 우회 불가로 강제.</what>
+      <how>
+        (1) 저장 시도 시 phase_progression.profile_whitelist.allowed와 매칭 → 미매칭이면 즉시 차단 + L7.4 incident 등록
+        (2) L6.3 PII Redaction 파이프라인이 앞단에 반드시 실행 (주민/카드/토큰/이메일/사업자번호/계좌/IP/경로 마스킹)
+        (3) 자동 refine loop 결과는 반드시 사용자 P2 승인(C6) 통과 후에만 반영. 자동 커밋 금지.
+        (4) 세션 종료 시 profile diff를 사용자에게 1회 표시 + opt-out 옵션 제공
+        (5) 90일 미참조 필드 자동 archived. 사용자 명시 삭제 시 즉시 hard-delete.
+      </how>
+      <state_note>Phase 2 완료 판정 전에는 dormant. Phase 3 미진입 상태에서 조기 활성화 금지. 활성화는 harness:promote 커밋으로만 dormant → experimental → active 전이.</state_note>
+      <evaluation_criteria>
+        - Phase 3 착수 시 activates_at 조건 확인 후 experimental로 전이
+        - 화이트리스트 외 필드 저장 시도 → 즉시 차단 + L7.4 incident + violations +1
+        - I11(품질 베이스라인) 위반 감지 → 즉시 비활성화
+      </evaluation_criteria>
+      <precedence>C13 Builtin Compliance Precedence + Anthropic 원본 privacy 규정을 상속·강화. tier 무관 P1 게이트.</precedence>
+    </rule>
+
     <!-- ─── 기존 실험 룰 (L1.4 이하 그대로 유지) ─── -->
     <rule id="L1.4_session_recall" state="experimental" since="2026-05-12" trial_count="0"
           phase_target="1_recon" source="user_request_2026-05-12">
@@ -951,6 +1007,8 @@
     <m id="L-1.5"  hits="0" violations="0" last_fired="never" state="experimental"/>
     <m id="L-1.6"  hits="0" violations="0" last_fired="never" state="experimental"/>
     <m id="HA6"    hits="0" violations="0" last_fired="never" state="active"/>
+    <!-- G5 Phase 3 privacy gate (dormant until Phase 2 완료) -->
+    <m id="L-3.1"  hits="0" violations="0" last_fired="never" state="dormant" note="Phase2 완료 후 experimental 전이"/>
   </rule_metrics>
 
   <!-- ════════════════════════════════════════════════════════════
