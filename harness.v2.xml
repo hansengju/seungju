@@ -449,6 +449,7 @@
         <HA3>UI/시각 의도 변형 가능성</HA3>
         <HA4>외부 효과(메일·결제·게시·배포·git push) 트리거 직전</HA4>
         <HA5>하네스 규칙 간 충돌 발생</HA5>
+        <HA6 since="2026-09-03" gap="G8">지시대명사(그거/이거/저거) 발화이나 직전 응답 lookup으로 지칭 대상 확정 불가 — 사용자에게 1회 질문 후 진행 (Tier 판정 전).</HA6>
         <action>작업 중지, 사용자 답변 전까지 도구 호출 금지.</action>
       </halt_and_ask>
 
@@ -609,6 +610,51 @@
       <what>매 응답 종료 시 (tier, 응답문 토큰 추정치, 도구 호출 수, 도구 응답 총 크기)를 session_ledger에 append. G2(측정 근거 부재) 대응.</what>
       <how>Phase 1 첫 10응답은 "기록만" 모드로 pre-tier baseline 확보. 이후 20응답에서 tier 적용 후 실측. Phase 1 성공 판정을 (응답 토큰 + 도구 왕복 토큰) 합계로 계량.</how>
       <session_ledger_location>~/.claude/session_ledger.jsonl (append-only, 세션 종료 시 배치 flush)</session_ledger_location>
+    </rule>
+
+    <!-- ─── Phase 1 잔여 gap 대응 (2026-09-03 추가, G3/G6/G8) ─── -->
+    <rule id="L-1.3" name="User Length Directive Override" phase_target="-1" state="experimental" since="2026-09-03" trial_count="0" gap="G3">
+      <trigger>사용자 발화에 명시 길이 지시 키워드 매칭 시 (L-1.1 tier 판정 후 오버라이드)</trigger>
+      <what>초안 tier에 사용자 명시 길이 지시(P2)가 우선. tier 자동 조정.</what>
+      <how>
+        expand 키워드(자세히·상세히·다·전부·전체·깊이·분석해서·꼼꼼히) 매칭 시 → 초안 tier +1 (상한 T3, 단 T4는 유지)
+        compress 키워드(짧게·간단히·요약만·한줄로·핵심만·간결히) 매칭 시 → 초안 tier −1 (하한 T0, 단 T3는 유지 — 안전 게이트 유지)
+        멀티파트 발화("먼저 X 알려주고 그 다음 Y 고쳐줘") → 응답 자체를 tier별 섹션 분리 (L-1.4 참조 후속)
+      </how>
+      <precedence>C12에 의거 표기 계층만 조정. I1~I11·L4.6·V게이트 절대 스킵 불가.</precedence>
+      <evaluation_criteria>
+        - hits ≥ 5 AND violations = 0 AND age ≥ 30일 → active 승격 (AL1)
+        - 사용자 재요청("더 짧게"·"더 자세히") 발생률 ≤ 10%
+        - I11 위반 감지 → 즉시 비활성화
+      </evaluation_criteria>
+    </rule>
+
+    <rule id="L-1.5" name="Classifier Cost Ceiling" phase_target="-1" state="experimental" since="2026-09-03" trial_count="0" gap="G6">
+      <trigger>Phase -1 내부 사고 종료 시</trigger>
+      <what>tier 결정·keep/skip 판단·target lookup에 쓰이는 내부 reasoning 토큰이 각 tier target의 20%를 초과하면 안 됨.</what>
+      <how>
+        L-1.1이 class_matrix pinned lookup으로 결정론적 판정 (heuristic·추론 최소화).
+        초과 감지 시 (a) heuristic 축약 (b) L7.5.2 session_ledger에 classifier_overhead 필드 기록 (c) 3회 연속 초과 시 AL3 trigger → 키워드 표 정제.
+      </how>
+      <measurement>rule_metrics에 avg_classifier_overhead_tokens 지표 추가. Phase 1 종료 조건 (d) 항목과 연동.</measurement>
+      <precedence>C12 scope_allowed 내 표기 계층 조정에 국한.</precedence>
+    </rule>
+
+    <rule id="L-1.6" name="Tier Transition State" phase_target="-1" state="experimental" since="2026-09-03" trial_count="0" gap="G8">
+      <trigger>tier 판정 시 직전 3턴 tier 시퀀스 참조</trigger>
+      <what>멀티턴 tier 전이 규칙. 급등·후퇴·지시대명사 케이스 정의.</what>
+      <how>
+        (a) T{n} → T{n+2} 이상 급등 (예: T1 → T3): 이전 답변 근거 재확인 서브루틴 강제 (L1.2 검증 재실행 + 스킵 규칙 재수집)
+        (b) T3 → T2 후퇴: 방금 편집한 파일·명령의 롤백 좌표 유효성 검증 필수 (git status + 최근 diff 확인)
+        (c) 지시대명사(그거/이거/저거) 발화: 직전 응답에서 지칭 대상 명시적 lookup, 실패 시 HA6 발동
+        (d) 세션 초반 3턴 미만 시: 전이 규칙 스킵 (baseline 부재)
+      </how>
+      <state_carry_over>class_matrix pinned lookup은 유지하되, 직전 tier·편집 상태를 in-context에 유지.</state_carry_over>
+      <evaluation_criteria>
+        - 급등·후퇴 케이스 발생 시 L1.2 재검증 100% 수행
+        - HA6 발동률 ≤ 5% (5% 초과 시 지시대명사 처리 heuristic 개선 필요)
+        - I11 위반 감지 → 즉시 비활성화
+      </evaluation_criteria>
     </rule>
 
     <!-- ─── 기존 실험 룰 (L1.4 이하 그대로 유지) ─── -->
@@ -900,6 +946,11 @@
     <m id="C12"    hits="0" violations="0" last_fired="never" state="deferred_immutable"/>
     <m id="C13"    hits="0" violations="0" last_fired="never" state="deferred_immutable"/>
     <m id="AR8"    hits="0" violations="0" last_fired="never" state="active"/>
+    <!-- Phase 1 잔여 gap 대응 (2026-09-03) -->
+    <m id="L-1.3"  hits="0" violations="0" last_fired="never" state="experimental"/>
+    <m id="L-1.5"  hits="0" violations="0" last_fired="never" state="experimental"/>
+    <m id="L-1.6"  hits="0" violations="0" last_fired="never" state="experimental"/>
+    <m id="HA6"    hits="0" violations="0" last_fired="never" state="active"/>
   </rule_metrics>
 
   <!-- ════════════════════════════════════════════════════════════
