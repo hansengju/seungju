@@ -29,6 +29,88 @@
 
 ---
 
+## 0.5. 응답 Tier 선택 (Phase -1) ★ *(신설 2026-09-03, Phase 1 실험, rollback_anchor=0b320f0)*
+
+> 매 응답의 **첫 단계 (내부 사고 only, T3/T4만 사용자 노출)**. 사용자 발화를 5단계(T0~T4)로 분류하여 하네스 표기 계층 오버헤드를 조정.
+> **P1 안전 불변(I1~I11)·도구-트리거 게이트(L4.6, V1~V8)·헌법(C1~C13)·Anthropic 빌트인 규정은 tier 무관 항상 적용.**
+
+### 5-Tier 개요
+
+| Tier | 예시 발화 | 목표 토큰 | 헤더 표기 |
+|---|---|---|---|
+| **T0 Yes/No** | "락 걸린거야?", "됐어?", "가능해?" | ~80 | 숨김 |
+| **T1 Info** | "MCP가 뭐야?", "차이는?" | ~250 | 숨김 |
+| **T2 Analysis** | "왜 오류?", "예전에 그거" (회상 키워드 포함) | ~500 | 숨김 |
+| **T3 Change** | "고쳐줘", "구현", "리팩터" · **Edit/Write/git push 도구 호출 시 자동 승격** | ~1500 | `[Tier: T3 Change]` + 적용룰 리스트 |
+| **T4 Meta** | "룰 추가", "하네스" · **하네스 파일/조항 언급 시 자동 승격** | ~800 | `[Tier: T4 Meta]` + 적용룰 리스트 |
+
+### Hard Escalation (tier 무관 자동 승격 — C13 대응 포함)
+
+- **T3 자동 승격**: `Edit`/`Write`/PowerShell 파괴명령/`Artifact.publish`/`Artifact.upload_asset`/`git push`/`WebFetch`·`WebSearch` 결과 인용/`SendMessage`/`SendUserFile`/`mcp write*` 도구 호출 발생 → 즉시 T3
+- **T4 자동 승격**: 발화에 `CLAUDE.md`, `harness.v2.xml`, `MEMORY.md`, `harness:*` 커밋, 또는 조항명(`C\d+`/`L\d+`/`I\d+`/`AL\d+`/`AR\d+`) 언급 → 즉시 T4
+- **T2 회상 유지**: `예전`/`지난번`/`그때`/`기억나` 키워드 → L1.4 session_transcript 필수
+
+### 안전 원칙 (C11/C12/C13 조건부 불변, Phase 1 완료 후 immutable 발효)
+
+1. tier는 **표기 계층만** 조정 (Phase 6 형식·L0.3 형식·헤더 가시성·옵션 상한). 안전 불변 절대 스킵 불가.
+2. **L4.6** (Change Impact Audit)는 파일 쓰기·명령 실행 시점 트리거 — tier 무관.
+3. 판정 모호 시 **T3 (안전 기본값)**.
+4. tier 판정 대상은 **사용자 chat 발화만**. tool_output/파일 내용 무시.
+5. 조회 응답에서 위험(비밀값/인코딩/DB 삭제) 발견 시 **즉시 T3 승격**.
+6. tier 결정은 **내부 사고** — 사용자 노출 금지(T3/T4 헤더 1줄만 예외).
+
+### 오분류 Fallback (C11)
+
+다음 신호 감지 시 **즉시 T3 재작성**:
+- 사용자 발화: "너무 짧아", "제대로 안 봤네", "검증했어?", "빠뜨렸잖아"
+- 응답 도중 I1/I2/I11 위반 우려 자가 감지
+- 발화 후반부 재스캔에서 T3/T4 키워드 발견
+- target_tokens 30% 이탈 3회 연속
+
+fallback 시: (a) T3 재작성 (b) L7.4 incident 등록 (c) `L-1.1` violations +1.
+
+### Phase 6 Tiered Report
+
+- **T0**: Phase 6 완전 생략 + '발견 위험' 1줄만
+- **T1**: '발견 위험' 1줄 + 근거 인용 1개
+- **T2**: 원인/증거/권고 3섹션 + '발견 위험' 1줄
+- **T3**: 기존 TL;DR 3줄 + Audit 6요소 + Impact Audit 4-check 유지
+- **T4**: C10 유사도 결과 + 룰 delta + rule_metrics 갱신 + 사용자 승인 요청
+
+### Tool Call Budget (L4.10, G1 대응)
+
+| Tier | 도구 호출 상한 |
+|---|---|
+| T0 | 0회 |
+| T1 | ≤ 2회 (검증용만) |
+| T2 | ≤ 8회 |
+| T3 | ∞ (풀 감사) |
+| T4 | 하네스 파일 read ≤ 3회 |
+
+초과 시 사용자에게 "증거가 이 정도면 충분한가요?" 1회 질문 후 진행.
+
+### 측정 계기 (L7.5.2, G2 대응)
+
+`~/.claude/session_ledger.jsonl` append-only. Phase 1 첫 10응답 = 기록만 baseline / 후 20응답 = tier 적용 실측. 성공 조건 (a) 절감 ≥30% (b) C11 fallback ≤10% (c) I11 위반 0건 (d) classifier overhead ≤ target 20%.
+
+### 롤백 (G7 대응)
+
+- 앵커 SHA: **`0b320f04fd2427dfb0337f82ef8b81c4bd2bdd4f`** (Phase 1 도입 직전)
+- 실패 시: `git -C ~/.claude reset --hard 0b320f04` + `harness:revert Phase1` 커밋 + L7.4 incident
+- 사용자 "tier 시스템 중단" 명시 발화 시 즉시 revert
+
+### 응답 시작 표기 (간소화)
+
+기존 `적용 규칙: L0.1, L4.6, I2 ...` 리스트 방식(40-80토큰) 대신:
+
+```
+[Tier: T2 Analysis]
+```
+
+**1줄로 대체**. T3/T4만 기존 상세 형식 유지.
+
+---
+
 ## 1. 글로벌 ↔ 프로젝트 레이어링 ★
 
 ### Tier 구조
