@@ -23,6 +23,9 @@
 7. **비밀값은 어떤 출력에도 절대 노출하지 않는다** *(I2)*.
 8. **의사결정 보고서를 작업 종료 시 항상 제출한다** — 최상단 3줄 요약 필수 *(L6.1)*.
 9. **★ 작업 종료 시 `~/.claude/harness.v2.xml`의 `rule_metrics`를 갱신한다** *(L7.5, DoD6)*.
+10. **★ 응답 종료 직전 active background task = 0 보장한다** — 의도적 장기 실행만 예외 *(L7.6, AR6)*.
+11. **★ 변경 직전 영향도 4-check 통과한다** — 호출 지점 grep / 외부 API 시그니처 / 플랫폼 quirk / 기존 동작 보존 *(L4.6, AR7)*.
+12. **★ 응답 종료 직전 적용 룰들을 실제 follow 했는지 자기 점검한다** *(L0.3)*.
 
 ---
 
@@ -125,12 +128,14 @@
 ### Phase 0 — 요청 수신
 - **L0.1 Intent Lock** — (목표 / 산출물 / 비-목표 / 제약) 4요소 재진술
 - **L0.2 Authority Scope** — 요청 범위 외 작업은 별도 제안
+- **★ L0.3 Rule Self-Check** *(신설 2026-05-26, 사고 INC-2026-05-26-2)* — 응답 시작 시 적용 룰 ID 명시 + **응답 종료 직전 그 룰들을 실제로 follow 했는지 자기 점검**. follow 안 했으면 보고서에 명시 + 다음 응답에서 시정. "적용 규칙: L0.1, L4.4" 만 적고 실제 검증 안 한 패턴 차단.
 
 ### Phase 1 — 정찰
 - **L1.1 Env Fingerprint** — OS, shell, Node, EOL, 인코딩 1줄 요약
 - **L1.2 Truth First** — 모든 코드 인용 전 검증, 미확인은 "(미검증)"
 - **L1.3 In-flight Work Check** — `git status` / 미커밋 / stash / 알 수 없는 브랜치
 - **L1.4 Session Recall** *(experimental, since 2026-05-12)* — 사용자가 "예전에/지난번/그때" 등 회상 키워드 명시 발화 시 `search_session_transcripts` 우선 호출. **자동 트리거 금지** (토큰 절약). I11 위반 감지 시 즉시 비활성화
+- **★ L1.5 Grep Liveness Verification** *(신설 2026-06-08, 사고 INC-2026-06-08-1)* — grep/검색 매치 줄을 "사용됨/호출됨/실행됨"으로 인용·결론짓기 직전, 그 줄이 **실제 live code인지** 전후 맥락(±10줄, 필요 시 함수 전체)을 읽어 검증. grep은 텍스트만 매치할 뿐 활성 여부를 보지 않는다. 4-check: **(a) 주석** 여부 — 라인 `//`·`#`, 블록 `{ }`·`(* *)`·`/* */`, Delphi 조건부컴파일 `{$IFNDEF DEBUG}` 비활성 분기 / **(b) 도달가능성** — 선행 `Exit`/`return`/`break`로 dead code 인지 / **(c) 정의 vs 호출** 구분 / **(d) 결론 표기** — 비활성이면 "정의만/주석/도달불가(dead)", 활성이면 "활성 호출"로 명시. 위반 시 **AR7** + 즉시 정정 + L7.4. (L4.6(a)의 분석·답변 시점 확장, L1.2에 liveness 차원 추가.)
 
 ### Phase 2 — 계획
 - **L2.1 Blast Radius** — 5종 영향 범위 표
@@ -149,6 +154,12 @@
 - **L4.3 Atomic Unit** — 한 커밋 = 한 논리 변경, 핵심 파일 5개 이내
 - **L4.4 No Phantom APIs** — 호출 직전 실존 검증
 - **L4.5 Senior Check** *(experimental, since 2026-05-19)* — 코드 작성 완료 직후 "시니어 엔지니어가 과복잡/과단순으로 볼지" 자가 평가. (a) 과복잡 → 단순화 (b) 과단순/누락 → 보완 (c) 적절 → 진행
+- **★ L4.6 Change Impact Audit** *(신설 2026-05-26, 사고 INC-2026-05-26-2)* — 코드 / 스크립트 / config 수정 직전 4가지 명시적 검사. 빠지면 AR7.
+  - **(a) 호출 지점 grep**: 변경할 함수·필드·import·파일명을 코드베이스 전체에서 grep → 모든 caller 영향 확인. 같은 entry 변수가 다른 mode 에서도 쓰이는지 등.
+  - **(b) 외부 API 시그니처 검증**: 라이브러리 메소드/필드 호출 전 `inspect.signature` / `dir()` / 공식 문서 확인. attribute setattr 만 되고 실제 효과 없는 케이스 (예: aiortc 1.14 `enc.maxBitrate`) 차단.
+  - **(c) 플랫폼 quirk 매핑**: Windows PS 5.1 / cp949 콘솔 / 한국어 / Native command stderr / IME / cmd vs PowerShell — 도메인 룰 (K1~K6, D1~D7) 과 매핑하고 해당하는 게 있으면 명시.
+  - **(d) 기존 동작 보존 증명**: 변경 후 (i) 기존 캐릭터(영향 받은 모듈) 동작 영향 0 증명, (ii) 영향 있다면 그 명시 + 회귀 방지.
+  Phase 4 코드 작성 직후, V1~V8 게이트 직전에 의무. 보고서 L6.2 Audit Body 에 "Impact Audit: 4 checks" 한 줄 명시.
 
 ### Phase 5 — 검증 게이트
 
@@ -174,6 +185,13 @@
 - **★ L7.3 Trigger Synthesis** — AR* 롤백 / feedback 메모리 3건 / 사용자 요청 시에만 합성. 유휴 비용 0
 - **★ L7.4 Incident Capture** — AR* 롤백 시 즉시 `<proposals>`에 사고 기록
 - **★ L7.5 Counter Update** — 작업 종료 시 `~/.claude/harness.v2.xml`의 `<rule_metrics>` 갱신
+- **★ L7.6 Background Task Hygiene** *(신설 2026-05-26, 사고 INC-2026-05-26-1)*
+  백그라운드 작업(`run_in_background:true`) 시작 시 4가지 모두 만족해야 한다:
+  (a) **종료 조건 명확**: 자체 종료 명령(빌드·테스트 등 자연 종료) 이거나 검증 직후 `TaskStop` 호출 의도가 사전 명시.
+  (b) **wait-loop 안전 가드**: `until <cond>; do sleep …; done` 류는 반드시 카운터/`timeout` 으로 cap (최대 60s). 무한 대기 금지.
+  (c) **응답 종료 시 active background = 0**: 사용자 응답 보내기 직전에 자기 응답에서 시작한 모든 background task 를 종료. 의도적 장기 실행(빌드 5분 등)은 보고서에 명시.
+  (d) **검증 직후 즉시 정리**: 검증용으로 띄운 서버·앱은 `curl`/단위 검증 마치는 즉시 `TaskStop`. "혹시 모르니 두자" 금지.
+  트리거: 사용자가 "셸 잔재 / 멈췄냐 / 의미 없이 길다" 류 발화. 측정: 응답 종료 시점 active background task 0개. 위반: AR6 (즉시 모두 정리 + 보고).
 
 ---
 
@@ -185,6 +203,8 @@
 - **AR3** I2 비밀값 노출
 - **AR4** L4.1 경계 이탈
 - **AR5** 동일 오류 3회
+- **AR6** *(신설 2026-05-26)* L7.6 위반 — 응답 종료 시 active background task ≠ 0 또는 무한 wait-loop 발견 → 즉시 모두 정리 + 보고
+- **AR7** *(신설 2026-05-26)* L4.6 위반 — 변경 후 기존 동작 깨짐 발견 (caller 영향 누락 / API 시그니처 오해 / 플랫폼 quirk 무시) → 자동 롤백 + L7.4 proposal 등록 + 동일 패턴 반복 방지
 
 → **즉시 롤백 + 사후 분석 + L7.4에 의해 proposal 자동 등록.**
 
