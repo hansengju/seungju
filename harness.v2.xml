@@ -993,46 +993,46 @@
        last_fired 형식: "never" | "YYYY-MM-DD"
        ════════════════════════════════════════════════════════════ -->
   <rule_metrics last_updated="2026-09-19">
-    <m id="L0.1" hits="105"  violations="2" last_fired="2026-09-20"/>
+    <m id="L0.1" hits="106"  violations="2" last_fired="2026-09-20"/>
     <m id="L0.2" hits="5"  violations="0" last_fired="2026-09-18"/>
-    <m id="L0.3" hits="91" violations="0" last_fired="2026-09-20"/>
+    <m id="L0.3" hits="92" violations="0" last_fired="2026-09-20"/>
     <m id="L1.1" hits="9"  violations="0" last_fired="2026-09-19"/>
-    <m id="L1.2" hits="203" violations="0" last_fired="2026-09-20"/>
-    <m id="L1.3" hits="42"  violations="0" last_fired="2026-09-20"/>
+    <m id="L1.2" hits="204" violations="0" last_fired="2026-09-20"/>
+    <m id="L1.3" hits="43"  violations="0" last_fired="2026-09-20"/>
     <m id="L1.5" hits="21"  violations="2" last_fired="2026-09-20"/>
-    <m id="L2.1" hits="56"  violations="0" last_fired="2026-09-20"/>
-    <m id="L2.2" hits="32"  violations="0" last_fired="2026-09-20"/>
+    <m id="L2.1" hits="57"  violations="0" last_fired="2026-09-20"/>
+    <m id="L2.2" hits="33"  violations="0" last_fired="2026-09-20"/>
     <m id="L2.3" hits="49"  violations="1" last_fired="2026-09-20"/>
     <m id="L3.1" hits="11"  violations="3" last_fired="2026-09-19"/>
     <m id="L3.2" hits="0"  violations="0" last_fired="never"/>
     <m id="L3.3" hits="20"  violations="2" last_fired="2026-09-19"/>
-    <m id="L4.1" hits="95" violations="1" last_fired="2026-09-20"/>
+    <m id="L4.1" hits="96" violations="1" last_fired="2026-09-20"/>
     <m id="L4.2" hits="26" violations="0" last_fired="2026-09-20"/>
     <m id="L4.3" hits="16" violations="0" last_fired="2026-09-19"/>
     <m id="L4.4" hits="66" violations="2" last_fired="2026-09-20"/>
-    <m id="L6.1" hits="61" violations="3" last_fired="2026-09-20"/>
-    <m id="L6.2" hits="56" violations="2" last_fired="2026-09-20"/>
+    <m id="L6.1" hits="62" violations="3" last_fired="2026-09-20"/>
+    <m id="L6.2" hits="57" violations="2" last_fired="2026-09-20"/>
     <m id="L6.3" hits="0"  violations="0" last_fired="never"/>
-    <m id="L7.1" hits="40"  violations="0" last_fired="2026-09-20"/>
+    <m id="L7.1" hits="41"  violations="0" last_fired="2026-09-20"/>
     <m id="L7.2" hits="5"  violations="0" last_fired="2026-09-20"/>
     <m id="L7.3" hits="1"  violations="0" last_fired="2026-09-19"/>
     <m id="L7.4" hits="10"  violations="0" last_fired="2026-09-19"/>
-    <m id="L7.5" hits="63"  violations="1" last_fired="2026-09-20"/>
-    <m id="L7.6" hits="67" violations="0" last_fired="2026-09-20"/>
-    <m id="V1"   hits="70" violations="0" last_fired="2026-09-20"/>
+    <m id="L7.5" hits="64"  violations="1" last_fired="2026-09-20"/>
+    <m id="L7.6" hits="68" violations="0" last_fired="2026-09-20"/>
+    <m id="V1"   hits="71" violations="0" last_fired="2026-09-20"/>
     <m id="V2"   hits="0" violations="0" last_fired="never"/>
-    <m id="V3"   hits="21" violations="1" last_fired="2026-09-20"/>
-    <m id="V4"   hits="56" violations="0" last_fired="2026-09-20"/>
+    <m id="V3"   hits="22" violations="1" last_fired="2026-09-20"/>
+    <m id="V4"   hits="57" violations="0" last_fired="2026-09-20"/>
     <m id="V5"   hits="0" violations="0" last_fired="never"/>
     <m id="V6"   hits="0" violations="0" last_fired="never"/>
     <m id="V7"   hits="5" violations="0" last_fired="2026-09-15"/>
     <m id="V8"   hits="18"  violations="1" last_fired="2026-09-20"/>
-    <m id="I1"   hits="202" violations="12" last_fired="2026-09-20"/>
+    <m id="I1"   hits="203" violations="12" last_fired="2026-09-20"/>
     <m id="I2"   hits="23"  violations="0" last_fired="2026-09-20"/>
-    <m id="I3"   hits="134" violations="5" last_fired="2026-09-20"/>
+    <m id="I3"   hits="135" violations="5" last_fired="2026-09-20"/>
     <m id="I4"   hits="19" violations="0" last_fired="2026-09-20"/>
     <m id="I5"   hits="0"  violations="0" last_fired="never"/>
-    <m id="I6"   hits="129" violations="1" last_fired="2026-09-20"/>
+    <m id="I6"   hits="130" violations="1" last_fired="2026-09-20"/>
     <m id="I7"   hits="8"  violations="0" last_fired="2026-05-04"/>
     <m id="I8"   hits="3"  violations="0" last_fired="2026-09-18"/>
     <m id="I9"   hits="11"  violations="0" last_fired="2026-09-20"/>
@@ -1046,13 +1046,13 @@
     <m id="D7"   hits="0" violations="0" last_fired="never"/>
     <m id="K1"   hits="37" violations="2" last_fired="2026-09-20"/>
     <m id="K2"   hits="20" violations="1" last_fired="2026-05-04"/>
-    <m id="K3"   hits="19"  violations="1" last_fired="2026-09-20"/>
+    <m id="K3"   hits="20"  violations="1" last_fired="2026-09-20"/>
     <m id="K4"   hits="45" violations="0" last_fired="2026-09-15"/>
     <m id="K5"   hits="3"  violations="0" last_fired="2026-05-04"/>
     <m id="K6"   hits="7"  violations="1" last_fired="2026-09-18"/>
     <m id="G1"   hits="9" violations="0" last_fired="2026-09-20"/>
     <m id="G2"   hits="0" violations="0" last_fired="never"/>
-    <m id="G3"   hits="13" violations="0" last_fired="2026-09-20"/>
+    <m id="G3"   hits="14" violations="0" last_fired="2026-09-20"/>
     <m id="G4"   hits="0" violations="0" last_fired="never"/>
     <m id="G5"   hits="0" violations="0" last_fired="never"/>
     <m id="U1"   hits="0" violations="0" last_fired="never"/>
@@ -1080,8 +1080,8 @@
     <m id="I11"  hits="1" violations="0" last_fired="2026-09-19"/>
     <m id="L1.4" hits="0" violations="0" last_fired="never"/>
     <m id="L2.4" hits="4" violations="0" last_fired="2026-08-28"/>
-    <m id="L4.5" hits="24" violations="0" last_fired="2026-09-20"/>
-    <m id="L4.6" hits="99" violations="4" last_fired="2026-09-20"/>
+    <m id="L4.5" hits="25" violations="0" last_fired="2026-09-20"/>
+    <m id="L4.6" hits="100" violations="4" last_fired="2026-09-20"/>
     <!-- Phase 1 Tier 시스템 신규 메트릭 (2026-09-03, rollback_anchor=0b320f0) -->
     <m id="T0"     hits="0" violations="0" last_fired="never" state="experimental"/>
     <m id="T1"     hits="0" violations="0" last_fired="never" state="experimental"/>
