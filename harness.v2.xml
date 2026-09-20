@@ -993,14 +993,14 @@
        last_fired 형식: "never" | "YYYY-MM-DD"
        ════════════════════════════════════════════════════════════ -->
   <rule_metrics last_updated="2026-09-19">
-    <m id="L0.1" hits="96"  violations="2" last_fired="2026-09-20"/>
+    <m id="L0.1" hits="97"  violations="2" last_fired="2026-09-20"/>
     <m id="L0.2" hits="5"  violations="0" last_fired="2026-09-18"/>
     <m id="L0.3" hits="87" violations="0" last_fired="2026-09-20"/>
     <m id="L1.1" hits="9"  violations="0" last_fired="2026-09-19"/>
     <m id="L1.2" hits="195" violations="0" last_fired="2026-09-20"/>
     <m id="L1.3" hits="38"  violations="0" last_fired="2026-09-20"/>
     <m id="L1.5" hits="17"  violations="2" last_fired="2026-09-20"/>
-    <m id="L2.1" hits="47"  violations="0" last_fired="2026-09-20"/>
+    <m id="L2.1" hits="48"  violations="0" last_fired="2026-09-20"/>
     <m id="L2.2" hits="32"  violations="0" last_fired="2026-09-20"/>
     <m id="L2.3" hits="49"  violations="1" last_fired="2026-09-20"/>
     <m id="L3.1" hits="11"  violations="3" last_fired="2026-09-19"/>
@@ -1013,7 +1013,7 @@
     <m id="L6.1" hits="57" violations="3" last_fired="2026-09-20"/>
     <m id="L6.2" hits="52" violations="2" last_fired="2026-09-20"/>
     <m id="L6.3" hits="0"  violations="0" last_fired="never"/>
-    <m id="L7.1" hits="34"  violations="0" last_fired="2026-09-20"/>
+    <m id="L7.1" hits="35"  violations="0" last_fired="2026-09-20"/>
     <m id="L7.2" hits="4"  violations="0" last_fired="2026-09-20"/>
     <m id="L7.3" hits="1"  violations="0" last_fired="2026-09-19"/>
     <m id="L7.4" hits="10"  violations="0" last_fired="2026-09-19"/>
@@ -1027,12 +1027,12 @@
     <m id="V6"   hits="0" violations="0" last_fired="never"/>
     <m id="V7"   hits="5" violations="0" last_fired="2026-09-15"/>
     <m id="V8"   hits="17"  violations="1" last_fired="2026-09-20"/>
-    <m id="I1"   hits="193" violations="10" last_fired="2026-09-20"/>
+    <m id="I1"   hits="194" violations="10" last_fired="2026-09-20"/>
     <m id="I2"   hits="23"  violations="0" last_fired="2026-09-20"/>
-    <m id="I3"   hits="125" violations="5" last_fired="2026-09-20"/>
+    <m id="I3"   hits="126" violations="5" last_fired="2026-09-20"/>
     <m id="I4"   hits="19" violations="0" last_fired="2026-09-20"/>
     <m id="I5"   hits="0"  violations="0" last_fired="never"/>
-    <m id="I6"   hits="120" violations="1" last_fired="2026-09-20"/>
+    <m id="I6"   hits="121" violations="1" last_fired="2026-09-20"/>
     <m id="I7"   hits="8"  violations="0" last_fired="2026-05-04"/>
     <m id="I8"   hits="3"  violations="0" last_fired="2026-09-18"/>
     <m id="I9"   hits="11"  violations="0" last_fired="2026-09-20"/>
