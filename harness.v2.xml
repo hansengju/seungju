@@ -993,49 +993,49 @@
        last_fired 형식: "never" | "YYYY-MM-DD"
        ════════════════════════════════════════════════════════════ -->
   <rule_metrics last_updated="2026-09-19">
-    <m id="L0.1" hits="114"  violations="2" last_fired="2026-09-20"/>
-    <m id="L0.2" hits="5"  violations="0" last_fired="2026-09-18"/>
-    <m id="L0.3" hits="100" violations="0" last_fired="2026-09-20"/>
-    <m id="L1.1" hits="9"  violations="0" last_fired="2026-09-19"/>
-    <m id="L1.2" hits="212" violations="0" last_fired="2026-09-20"/>
-    <m id="L1.3" hits="51"  violations="0" last_fired="2026-09-20"/>
-    <m id="L1.5" hits="21"  violations="2" last_fired="2026-09-20"/>
-    <m id="L2.1" hits="65"  violations="0" last_fired="2026-09-20"/>
-    <m id="L2.2" hits="34"  violations="0" last_fired="2026-09-20"/>
-    <m id="L2.3" hits="49"  violations="1" last_fired="2026-09-20"/>
+    <m id="L0.1" hits="117"  violations="2" last_fired="2026-09-24"/>
+    <m id="L0.2" hits="6"  violations="0" last_fired="2026-09-22"/>
+    <m id="L0.3" hits="102" violations="0" last_fired="2026-09-24"/>
+    <m id="L1.1" hits="10"  violations="0" last_fired="2026-09-24"/>
+    <m id="L1.2" hits="215" violations="0" last_fired="2026-09-24"/>
+    <m id="L1.3" hits="53"  violations="0" last_fired="2026-09-24"/>
+    <m id="L1.5" hits="23"  violations="2" last_fired="2026-09-23"/>
+    <m id="L2.1" hits="66"  violations="0" last_fired="2026-09-22"/>
+    <m id="L2.2" hits="35"  violations="0" last_fired="2026-09-22"/>
+    <m id="L2.3" hits="51"  violations="1" last_fired="2026-09-23"/>
     <m id="L3.1" hits="11"  violations="3" last_fired="2026-09-19"/>
     <m id="L3.2" hits="0"  violations="0" last_fired="never"/>
-    <m id="L3.3" hits="20"  violations="2" last_fired="2026-09-19"/>
-    <m id="L4.1" hits="104" violations="1" last_fired="2026-09-20"/>
-    <m id="L4.2" hits="26" violations="0" last_fired="2026-09-20"/>
+    <m id="L3.3" hits="22"  violations="2" last_fired="2026-09-23"/>
+    <m id="L4.1" hits="107" violations="1" last_fired="2026-09-24"/>
+    <m id="L4.2" hits="29" violations="0" last_fired="2026-09-24"/>
     <m id="L4.3" hits="16" violations="0" last_fired="2026-09-19"/>
-    <m id="L4.4" hits="66" violations="2" last_fired="2026-09-20"/>
-    <m id="L6.1" hits="70" violations="3" last_fired="2026-09-20"/>
-    <m id="L6.2" hits="65" violations="2" last_fired="2026-09-20"/>
+    <m id="L4.4" hits="68" violations="2" last_fired="2026-09-23"/>
+    <m id="L6.1" hits="73" violations="3" last_fired="2026-09-24"/>
+    <m id="L6.2" hits="68" violations="2" last_fired="2026-09-24"/>
     <m id="L6.3" hits="0"  violations="0" last_fired="never"/>
-    <m id="L7.1" hits="49"  violations="0" last_fired="2026-09-20"/>
+    <m id="L7.1" hits="51"  violations="0" last_fired="2026-09-24"/>
     <m id="L7.2" hits="5"  violations="0" last_fired="2026-09-20"/>
     <m id="L7.3" hits="1"  violations="0" last_fired="2026-09-19"/>
     <m id="L7.4" hits="10"  violations="0" last_fired="2026-09-19"/>
-    <m id="L7.5" hits="72"  violations="1" last_fired="2026-09-20"/>
-    <m id="L7.6" hits="76" violations="0" last_fired="2026-09-20"/>
-    <m id="V1"   hits="79" violations="0" last_fired="2026-09-20"/>
+    <m id="L7.5" hits="75"  violations="1" last_fired="2026-09-24"/>
+    <m id="L7.6" hits="79" violations="0" last_fired="2026-09-24"/>
+    <m id="V1"   hits="80" violations="0" last_fired="2026-09-24"/>
     <m id="V2"   hits="0" violations="0" last_fired="never"/>
     <m id="V3"   hits="30" violations="1" last_fired="2026-09-20"/>
-    <m id="V4"   hits="65" violations="0" last_fired="2026-09-20"/>
+    <m id="V4"   hits="66" violations="0" last_fired="2026-09-24"/>
     <m id="V5"   hits="0" violations="0" last_fired="never"/>
     <m id="V6"   hits="0" violations="0" last_fired="never"/>
     <m id="V7"   hits="5" violations="0" last_fired="2026-09-15"/>
     <m id="V8"   hits="20"  violations="1" last_fired="2026-09-20"/>
-    <m id="I1"   hits="211" violations="13" last_fired="2026-09-20"/>
+    <m id="I1"   hits="214" violations="13" last_fired="2026-09-24"/>
     <m id="I2"   hits="23"  violations="0" last_fired="2026-09-20"/>
-    <m id="I3"   hits="143" violations="5" last_fired="2026-09-20"/>
+    <m id="I3"   hits="146" violations="5" last_fired="2026-09-24"/>
     <m id="I4"   hits="19" violations="0" last_fired="2026-09-20"/>
     <m id="I5"   hits="0"  violations="0" last_fired="never"/>
-    <m id="I6"   hits="138" violations="1" last_fired="2026-09-20"/>
+    <m id="I6"   hits="141" violations="1" last_fired="2026-09-24"/>
     <m id="I7"   hits="8"  violations="0" last_fired="2026-05-04"/>
-    <m id="I8"   hits="3"  violations="0" last_fired="2026-09-18"/>
-    <m id="I9"   hits="11"  violations="0" last_fired="2026-09-20"/>
+    <m id="I8"   hits="5"  violations="0" last_fired="2026-09-23"/>
+    <m id="I9"   hits="12"  violations="0" last_fired="2026-09-24"/>
     <m id="I10"  hits="4"  violations="1" last_fired="2026-09-20"/>
     <m id="D1"   hits="0" violations="0" last_fired="never"/>
     <m id="D2"   hits="0" violations="0" last_fired="never"/>
@@ -1046,13 +1046,13 @@
     <m id="D7"   hits="0" violations="0" last_fired="never"/>
     <m id="K1"   hits="37" violations="2" last_fired="2026-09-20"/>
     <m id="K2"   hits="20" violations="1" last_fired="2026-05-04"/>
-    <m id="K3"   hits="28"  violations="1" last_fired="2026-09-20"/>
+    <m id="K3"   hits="29"  violations="1" last_fired="2026-09-24"/>
     <m id="K4"   hits="45" violations="0" last_fired="2026-09-15"/>
     <m id="K5"   hits="3"  violations="0" last_fired="2026-05-04"/>
-    <m id="K6"   hits="7"  violations="1" last_fired="2026-09-18"/>
+    <m id="K6"   hits="9"  violations="1" last_fired="2026-09-23"/>
     <m id="G1"   hits="9" violations="0" last_fired="2026-09-20"/>
     <m id="G2"   hits="0" violations="0" last_fired="never"/>
-    <m id="G3"   hits="22" violations="0" last_fired="2026-09-20"/>
+    <m id="G3"   hits="23" violations="0" last_fired="2026-09-24"/>
     <m id="G4"   hits="0" violations="0" last_fired="never"/>
     <m id="G5"   hits="0" violations="0" last_fired="never"/>
     <m id="U1"   hits="0" violations="0" last_fired="never"/>
@@ -1081,7 +1081,7 @@
     <m id="L1.4" hits="0" violations="0" last_fired="never"/>
     <m id="L2.4" hits="4" violations="0" last_fired="2026-08-28"/>
     <m id="L4.5" hits="33" violations="0" last_fired="2026-09-20"/>
-    <m id="L4.6" hits="108" violations="4" last_fired="2026-09-20"/>
+    <m id="L4.6" hits="111" violations="4" last_fired="2026-09-24"/>
     <!-- Phase 1 Tier 시스템 신규 메트릭 (2026-09-03, rollback_anchor=0b320f0) -->
     <m id="T0"     hits="0" violations="0" last_fired="never" state="experimental"/>
     <m id="T1"     hits="0" violations="0" last_fired="never" state="experimental"/>
