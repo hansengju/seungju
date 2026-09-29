@@ -23,7 +23,7 @@ sMessage := '...';
 iiCom.iMsg.MsgWarning(self, iiCom.iLang.GetCodeMessage(sMessage, []), iiCom.iMsg.GetMsgTitle(self));
 Exit;
 ```
-팝업(EXC0102020_01)은 행 표시가 아니라 이 방식으로 저장을 막는다. 〔@P:1125 "frame_CNTY_CD.Edt.Text"〕
+팝업(EXC0102020_01)은 행 표시가 아니라 이 방식으로 저장을 막는다. 〔@P:1138 "frame_CNTY_CD.Edt.Text"〕
 
 ## 3. 검증 함수가 불리는 경로 (대량송금 MX 기준)
 

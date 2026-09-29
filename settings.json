@@ -65,6 +65,19 @@
                         "async": true
                     }
                 ]
+            },
+            {
+                "matcher": "Grep|Read|Bash|PowerShell|Skill|Agent",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "python",
+                        "args": [
+                            "C:\\Users\\hanse\\.claude\\hooks\\assist.py"
+                        ],
+                        "timeout": 15
+                    }
+                ]
             }
         ],
         "Stop": [
@@ -91,6 +104,21 @@
                             "C:\\Users\\hanse\\.claude\\hooks\\observe.py"
                         ],
                         "async": true
+                    }
+                ]
+            }
+        ],
+        "PreToolUse": [
+            {
+                "matcher": "Edit|Write|NotebookEdit",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "python",
+                        "args": [
+                            "C:\\Users\\hanse\\.claude\\hooks\\k6_guard.py"
+                        ],
+                        "timeout": 5
                     }
                 ]
             }
