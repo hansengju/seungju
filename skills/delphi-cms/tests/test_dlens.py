@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 """dlens 회귀 시험 — 합성 코드만 쓴다(회사 소스 복사 금지).
 
-각 시험은 이번 세션에서 실제로 틀렸던 판정 유형을 재현한다.
+각 시험은 실제로 틀렸던 판정 유형을 재현한다.
+  1차: 2026-09 세션 오보(주석·DFM·if 분기 안 패치 등)
+  2차: 반증 시험 워크플로(wf_37381f61)가 D:\\K 2,151개 파일에서 찾은 도구 결함 23건의 유형
   python tests/test_dlens.py      → 끝에 PASS / FAIL n
 """
 import os
@@ -17,22 +19,29 @@ PAS = r"""unit uFixture;
 
 interface
 
+{$IFNDEF UNICODE}
+  {$DEFINE USESET}
+{$ENDIF}
+
 type
   TFoo = class(TForm)
     procedure btn_RegClick(Sender: TObject);
   end;
   EMine = class(Exception);
+  TProcRef = reference to procedure;
   TRec = record
     a: Integer;
     case Integer of
       0: (b: Integer);
   end;
+  CP_Send = function(pName: PAnsiChar; nSize: Double{Integer}; nMode: Integer): Integer;
 
 implementation
 
 procedure TFoo.btn_RegClick(Sender: TObject);
 var
   s, sBic: string;
+  LocalVarLine: Integer;
 begin
   s := '{ 문자열 안 중괄호 }';
   CallAfterString;
@@ -48,6 +57,12 @@ begin
   {$ELSE}
   ReleaseOnly;
   {$ENDIF}
+  {$IFDEF USESET}
+  SetOnly;
+  {$ENDIF}
+  {$IFNDEF USESET}
+  NoSetOnly;
+  {$ENDIF}
   if sBic = '' then
   begin
     InsideBicEmpty;
@@ -55,12 +70,59 @@ begin
   AfterBicBlock;
   if s = 'x' then
     SingleBody;
+  if s = 'z' then
+    ContinuedCall(1,
+      ContinuationArg);
+  for nChk := 2 to 5 do
+    if s = 'w' then
+    begin
+      InsideForIf;
+    end;
+  case nChk of
+    1:
+      CaseLabelBody;
+  end;
   if s = 'y' then Exit;
   StillReachable;
+  try
+    TryBody;
+    Exit;
+  finally
+    FinallyReachable;
+  end;
+  try
+    raise Exception.Create(
+      'multi line message' + s);
+  except
+    ExceptReachable;
+  end;
+  while True do
+  begin
+    Break;
+    DeadAfterBreak;
+  end;
+  begin
+    raise Exception.Create(
+      'arg line is not dead');
+    DeadAfterRaise;
+  end;
   begin
     Exit;
     DeadAfterExit;
   end;
+  {$IFDEF DEBUG}
+  if s = 'dbg' then
+  {$ELSE}
+  if s = 'rel' then
+  {$ENDIF}
+  begin
+    BranchBody;
+  end;
+  {$IFDEF DEBUG}
+  if s = 'only dbg' then
+  {$ELSE}
+  ElseBranchStmt;
+  {$ENDIF}
   Foo; { 꼬리 주석 }
 end;
 
@@ -84,6 +146,7 @@ DFM = """object frmFoo: TfrmFoo
       Left = 8
       inherited Edt: TcxButtonEdit
         Left = 0
+        Properties.OnEditValueChanged = btn_RegClick
       end
     end
     object btn_Reg: TcxButton
@@ -110,75 +173,116 @@ def main():
 
     s = dlens.Src(pas)
     L = lambda needle: line_no(PAS, needle)  # noqa: E731
-    lab = lambda needle: s.classify(L(needle))[0]  # noqa: E731
+    lab = lambda needle, src=s: src.classify(L(needle))[0]  # noqa: E731
+    nest = lambda needle, src=s: src.nesting(L(needle))  # noqa: E731
 
     cases = []
 
     def check(name, got, want):
         cases.append((name, got == want, got, want))
 
-    # 1) 오보#1 유형: { } 블록주석 안의 호출
+    # ── 1차: 세션 오보 유형 ──
     check("블록주석 { } 안 ShowMessage", lab("ShowMessage('debug')"), "블록주석 { }")
-    # 2) (* *) 블록주석 안의 호출 (validCheckData 사례)
     check("(* *) 안 validCheckData", lab("validCheckData_TR_FXD0037"), "블록주석 (* *)")
-    # 3) 라인주석
     check("// 라인주석", lab("// LineCommented"), "라인주석 //")
-    # 4) 문자열 안 { 는 주석 시작이 아니다
     check("문자열 안 { 뒤 코드는 활성", lab("CallAfterString"), "활성")
-    # 4-b) 매치가 문자열 리터럴 안이어도 그 줄은 살아 있는 코드다 (FieldByName('ERP_ERROR') 사례)
     ln_s = L("s := '{ 문자열 안 중괄호 }'")
-    pos_s = s.pos_of(ln_s, s.lines[ln_s - 1].index("문자열"))
-    lab_s, det_s = s.classify(ln_s, pos_s)
+    lab_s, det_s = s.classify(ln_s, s.pos_of(ln_s, s.lines[ln_s - 1].index("문자열")))
     check("문자열 안 매치 → 활성 + 설명", (lab_s, "문자열 리터럴 안" in det_s), ("활성", True))
-    # 5) 조건부 — 심볼 값 모르면 활성+조건부 표기, 지정하면 비활성
     lab_d, det_d = s.classify(L("DebugOnly"))
     check("{$IFDEF DEBUG} 값 미상 → 활성·조건부", (lab_d, "조건부" in det_d), ("활성", True))
     s_rel = dlens.Src(pas, undefs=["DEBUG"])
-    check("--undef DEBUG → DebugOnly 비활성", s_rel.classify(L("DebugOnly"))[0], "조건부 비활성")
-    check("--undef DEBUG → ReleaseOnly 활성", s_rel.classify(L("ReleaseOnly"))[0], "활성")
+    check("--undef DEBUG → DebugOnly 비활성", lab("DebugOnly", s_rel), "조건부 비활성")
+    check("--undef DEBUG → ReleaseOnly 활성", lab("ReleaseOnly", s_rel), "활성")
     s_dbg = dlens.Src(pas, defines=["DEBUG"])
-    check("--define DEBUG → ReleaseOnly 비활성", s_dbg.classify(L("ReleaseOnly"))[0], "조건부 비활성")
-    # 6) 오보#5 유형: if sBic = '' 분기 안인지
-    chain_in, _ = s.nesting(L("InsideBicEmpty"))
+    check("--define DEBUG → ReleaseOnly 비활성", lab("ReleaseOnly", s_dbg), "조건부 비활성")
+    chain_in = nest("InsideBicEmpty")[0]
     check("InsideBicEmpty 는 if sBic='' 안", any("if" in d and "sBic = ''" in d for _b, d in chain_in), True)
-    chain_out, _ = s.nesting(L("AfterBicBlock"))
-    check("AfterBicBlock 은 if 밖(routine 직속)", [d.split(":")[0] for _b, d in chain_out], ["routine 본문"])
-    # 7) begin 없는 단문 본문
-    _c, single = s.nesting(L("SingleBody;"))
-    check("SingleBody 는 if 단문 본문", bool(single and "if" in single), True)
-    # 8) 조건부 Exit 뒤는 도달 가능, 직접 Exit 뒤는 도달불가
+    check("AfterBicBlock 은 if 밖(routine 직속)", [d.split(":")[0] for _b, d in nest("AfterBicBlock")[0]], ["routine 본문"])
+    check("SingleBody 는 if 단문 본문", bool((nest("SingleBody;")[1] or "").startswith("if")), True)
     check("if..then Exit 뒤 StillReachable 활성", lab("StillReachable"), "활성")
     check("Exit; 뒤 DeadAfterExit 도달불가", lab("DeadAfterExit"), "도달불가 추정")
-    # 9) 정의 vs 참조
-    lab_def, det_def = s.classify(L("procedure TFoo.btn_RegClick"))
-    check("routine 머리 = 정의/선언", "정의/선언" in det_def, True)
-    # 10) class(Exception); 전방 선언과 variant record 가 구조를 깨지 않는다
+    check("routine 머리 = 정의/선언", "정의/선언" in s.classify(L("procedure TFoo.btn_RegClick"))[1], True)
     check("블록 균형(underflow 0, 끝 깊이 0)", (s.underflow, s.final_depth), (0, 0))
-    chain_inner, _ = s.nesting(L("InnerBody"))
-    check("중첩 routine Inner 본문 인식", any("Inner" in d for _b, d in chain_inner), True)
-    chain_outer, _ = s.nesting(L("OuterBody"))
-    check("Outer 본문 인식", any("Outer" in d and "Inner" not in d for _b, d in chain_outer), True)
-    # 11) 줄 일부 주석
+    check("중첩 routine Inner 본문 인식", any("Inner" in d for _b, d in nest("InnerBody")[0]), True)
+    check("Outer 본문 인식", any("본문: Outer" in d for _b, d in nest("OuterBody")[0]), True)
     check("Foo; { 꼬리 } → 활성·줄 일부 주석", "줄 일부 주석" in s.classify(L("Foo; {"))[1], True)
-    # 12) 인코딩
     check("cp949 판정", s.info["enc"], "cp949")
 
-    # 13) 오보#7 유형: DFM inline / inherited 도 찾는다 (CLI 경유)
+    # ── 2차: 반증 시험에서 나온 결함 유형 ──
+    # (a) 조건부 안의 {$DEFINE} — 10.4 는 UNICODE 기본 → USESET 은 정의 안 됨
+    #     건너뛴 DEFINE 의 심볼은 '없음' 이 아니라 '모름'(프로젝트 옵션이 정의할 수 있다) → 확정하지 않는다
+    lab_b, det_b = s.classify(L("SetOnly"))
+    check("기본심볼: 꺼진 분기의 DEFINE 는 적용 안 함 → SetOnly 값 미상", (lab_b, "미상" in det_b), ("활성", True))
+    s_u = dlens.Src(pas, undefs=["USESET"])
+    check("--undef USESET: 꺼진 DEFINE 가 덮어쓰지 않음 → SetOnly 비활성", lab("SetOnly", s_u), "조건부 비활성")
+    check("--undef USESET: NoSetOnly 활성", lab("NoSetOnly", s_u), "활성")
+    s_nu = dlens.Src(pas, undefs=["UNICODE"], builtin=False)
+    check("UNICODE 끔 → DEFINE 적용 → NoSetOnly 비활성", lab("NoSetOnly", s_nu), "조건부 비활성")
+    check("UNICODE 끔 → SetOnly 확정 활성(미상 아님)", s_nu.classify(L("SetOnly")), ("활성", ""))
+    s_nb = dlens.Src(pas, builtin=False)
+    lab_nb, det_nb = s_nb.classify(L("SetOnly"))
+    check("--no-builtin: SetOnly 는 값 미상(확정 금지)", (lab_nb, "미상" in det_nb), ("활성", True))
+    # (b) 여러 줄 raise/Exit 문장의 인자 줄은 도달불가가 아니다
+    check("raise 인자 연속줄은 활성", lab("'arg line is not dead'"), "활성")
+    check("raise 문장 끝난 뒤 DeadAfterRaise 도달불가", lab("DeadAfterRaise"), "도달불가 추정")
+    # (c) try..finally / try..except 절은 Exit·raise 뒤에도 도달한다
+    check("Exit 뒤 finally 절 활성", lab("FinallyReachable"), "활성")
+    check("raise 뒤 except 절 활성", lab("ExceptReachable"), "활성")
+    check("try 안 raise 인자 줄 활성", lab("'multi line message'"), "활성")
+    # (d) Break 뒤 도달불가
+    check("Break; 뒤 DeadAfterBreak 도달불가", lab("DeadAfterBreak"), "도달불가 추정")
+    # (e) begin 줄 자체는 단문 본문이 아니다
+    check("if 다음 begin 줄은 단문 본문 아님", s.nesting(L("if sBic = ''") + 1)[1], None)
+    # (f) 단문 머리 연쇄: for .. do if .. then begin 안
+    chain_fi = [d for _b, d in nest("InsideForIf")[0]]
+    check("for→if 단문 머리 연쇄가 감싼 구조에 나온다", any("단문 머리 for" in d for d in chain_fi), True)
+    # (g) 여러 줄 문장의 연속줄도 단문 본문으로 판정
+    single_c = nest("ContinuationArg")[1] or ""
+    check("연속줄 → 단문 본문(if) + 연속줄 표시", single_c.startswith("if") and "연속줄" in single_c, True)
+    # (h) case 라벨 본문
+    check("case 라벨 본문", (nest("CaseLabelBody")[1] or "").startswith("case 라벨"), True)
+    # (i) routine 선언부(var 절)는 최상위가 아니다
+    check("var 절 줄 → routine 선언부", any("선언부: TFoo.btn_RegClick" in d for _b, d in nest("LocalVarLine")[0]), True)
+    # (j) 중첩 routine 안 → 바깥 routine 선언부도 나온다
+    check("Inner 본문 안 → Outer 선언부 포함", any("선언부: Outer" in d for _b, d in nest("InnerBody")[0]), True)
+    # (k) 조건부 분기가 섞인 머리 — 분기를 정하면 그 분기 머리
+    hdr_dbg = [d for _b, d in s_dbg.nesting(L("BranchBody"))[0]]
+    hdr_rel = [d for _b, d in s_rel.nesting(L("BranchBody"))[0]]
+    check("--define DEBUG → 머리 if s = 'dbg'", any("'dbg'" in d for d in hdr_dbg), True)
+    check("--undef DEBUG → 머리 if s = 'rel'", any("'rel'" in d for d in hdr_rel), True)
+    check("분기 미정이면 [주의] 표시", s.nesting(L("BranchBody"))[2], True)
+    check("분기를 정하면 [주의] 없음", s_dbg.nesting(L("BranchBody"))[2], False)
+    # (k-2) {$ELSE} 분기의 독립 문장을 {$IFDEF} 분기 if 의 단문 본문으로 보지 않는다
+    single_x = s.nesting(L("ElseBranchStmt"))[1] or ""
+    check("다른 분기의 머리는 단문 머리로 쓰지 않음", single_x.startswith("아님"), True)
+    # (l) reference to procedure / 타입 선언은 routine 으로 세지 않는다
+    check("reference to procedure 는 routine 아님", all("TProcRef" not in n for n, _l in s.routines), True)
+
+    # ── CLI 경유 ──
     py = sys.executable
     tool = os.path.join(HERE, "..", "scripts", "dlens.py")
     env = dict(os.environ, PYTHONIOENCODING="utf-8")
-    out = subprocess.run([py, tool, "dfm", dfm, "frame_CNTY_CD"], capture_output=True, env=env).stdout.decode("utf-8")
+    run = lambda *args: subprocess.run([py, tool] + list(args), capture_output=True, env=env).stdout.decode("utf-8")  # noqa: E731
+    out = run("dfm", dfm, "frame_CNTY_CD")
     check("DFM inline frame_CNTY_CD 발견", "inline frame_CNTY_CD: TFrameEdit" in out, True)
-    out2 = subprocess.run([py, tool, "dfm", dfm, "Edt"], capture_output=True, env=env).stdout.decode("utf-8")
+    out2 = run("dfm", dfm, "Edt")
     check("DFM inherited Edt 부모 경로", "frame_CNTY_CD" in out2 and "inherited Edt" in out2, True)
-    # 14) callers: 정의 / 활성 참조 / 주석 / DFM 배선 구분 + 범위 표기
-    out3 = subprocess.run([py, tool, "callers", "btn_RegClick", tmp], capture_output=True, env=env).stdout.decode("utf-8")
+    out3 = run("callers", "btn_RegClick", tmp)
     check("callers 범위 표기", "[범위] 파일 2개" in out3, True)
-    check("callers DFM 이벤트 배선 구분", "DFM 이벤트 배선" in out3, True)
-    out4 = subprocess.run([py, tool, "grep", "ShowMessage|validCheckData", tmp], capture_output=True, env=env).stdout.decode("utf-8")
-    check("grep 결과에 주석 라벨이 붙는다", "블록주석 { }" in out4 and "블록주석 (* *)" in out4, True)
-    out5 = subprocess.run([py, tool, "grep", "NoSuchThing", tmp], capture_output=True, env=env).stdout.decode("utf-8")
+    check("callers DFM OnClick 배선", "OnClick = btn_RegClick" in out3 and out3.count("[DFM 이벤트 배선]") == 2, True)
+    out4 = run("grep", "ShowMessage|validCheckData", tmp)
+    check("grep 결과에 주석 라벨", "블록주석 { }" in out4 and "블록주석 (* *)" in out4, True)
+    out5 = run("grep", "NoSuchThing", tmp)
     check("0건이면 범위 한정 문구", "범위 안에 이 텍스트가 없다는 뜻일 뿐" in out5, True)
+    # (m) 한 줄의 첫 매치가 주석이어도 뒤 매치가 코드면 활성
+    out6 = run("grep", r"\bInteger\b", pas)
+    line6 = [l for l in out6.splitlines() if "CP_Send" in l]
+    check("첫 매치 주석·뒤 매치 코드 → 활성", bool(line6) and "[활성" in line6[0], True)
+    # (n) 시그니처 안 타입 참조는 '정의/선언' 이 아니다
+    out7 = run("grep", r"\bTObject\b", pas)
+    line7 = [l for l in out7.splitlines() if "TFoo.btn_RegClick" in l]
+    check("시그니처 안 TObject → 선언 시그니처 안 참조", bool(line7) and "선언 시그니처 안 참조" in line7[0], True)
 
     fails = 0
     for name, ok, got, want in cases:
