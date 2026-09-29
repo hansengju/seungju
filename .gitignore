@@ -16,6 +16,15 @@
 !/harness.v2.xml
 !/README.md
 
+# 2026-09-29 구조 개편 0단계: 훅·설정·도메인 스킬·에이전트도 롤백 좌표로 추적
+# (settings.json 은 비밀값 0건 확인 후 추적. 비밀값을 넣게 되면 이 줄부터 뺀다)
+!/settings.json
+!/hooks/
+!/agents/
+!/skills/
+/skills/*
+!/skills/delphi-cms/
+
 # 안전망: 비밀값/세션·메모리/세션 컨텐츠가 혹시라도 포함되지 않도록 명시 차단
 **/sessions/
 **/plans/

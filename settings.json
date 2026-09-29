@@ -1,0 +1,36 @@
+{
+    "$schema":  "https://json.schemastore.org/claude-code-settings.json",
+    "hooks":  {
+                  "UserPromptSubmit":  [
+                                           {
+                                               "hooks":  [
+                                                             {
+                                                                 "type":  "command",
+                                                                 "command":  "python",
+                                                                 "args":  [
+                                                                              "C:\\Users\\hanse\\.claude\\hooks\\harness_reminder.py"
+                                                                          ],
+                                                                 "timeout":  15,
+                                                                 "statusMessage":  "하네스 규칙 주입"
+                                                             }
+                                                         ]
+                                           }
+                                       ]
+              },
+    "effortLevel":  "xhigh",
+    "skipWorkflowUsageWarning":  true,
+    "extraKnownMarketplaces":  {
+                                   "msw-ai-coding-plugins-official":  {
+                                                                          "source":  {
+                                                                                         "source":  "github",
+                                                                                         "repo":  "MSW-Git/msw-ai-coding-plugins-official"
+                                                                                     }
+                                                                      },
+                                   "ponytail":  {
+                                                    "source":  {
+                                                                   "source":  "github",
+                                                                   "repo":  "DietrichGebert/ponytail"
+                                                               }
+                                                }
+                               }
+}
