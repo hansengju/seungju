@@ -1,36 +1,115 @@
 {
-    "$schema":  "https://json.schemastore.org/claude-code-settings.json",
-    "hooks":  {
-                  "UserPromptSubmit":  [
-                                           {
-                                               "hooks":  [
-                                                             {
-                                                                 "type":  "command",
-                                                                 "command":  "python",
-                                                                 "args":  [
-                                                                              "C:\\Users\\hanse\\.claude\\hooks\\harness_reminder.py"
-                                                                          ],
-                                                                 "timeout":  15,
-                                                                 "statusMessage":  "하네스 규칙 주입"
-                                                             }
-                                                         ]
-                                           }
-                                       ]
-              },
-    "effortLevel":  "xhigh",
-    "skipWorkflowUsageWarning":  true,
-    "extraKnownMarketplaces":  {
-                                   "msw-ai-coding-plugins-official":  {
-                                                                          "source":  {
-                                                                                         "source":  "github",
-                                                                                         "repo":  "MSW-Git/msw-ai-coding-plugins-official"
-                                                                                     }
-                                                                      },
-                                   "ponytail":  {
-                                                    "source":  {
-                                                                   "source":  "github",
-                                                                   "repo":  "DietrichGebert/ponytail"
-                                                               }
-                                                }
-                               }
+    "$schema": "https://json.schemastore.org/claude-code-settings.json",
+    "hooks": {
+        "UserPromptSubmit": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "python",
+                        "args": [
+                            "C:\\Users\\hanse\\.claude\\hooks\\harness_reminder.py"
+                        ],
+                        "timeout": 15,
+                        "statusMessage": "하네스 규칙 주입"
+                    },
+                    {
+                        "type": "command",
+                        "command": "python",
+                        "args": [
+                            "C:\\Users\\hanse\\.claude\\hooks\\observe.py"
+                        ],
+                        "async": true
+                    }
+                ]
+            }
+        ],
+        "SessionStart": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "python",
+                        "args": [
+                            "C:\\Users\\hanse\\.claude\\hooks\\observe.py"
+                        ],
+                        "timeout": 5
+                    }
+                ]
+            }
+        ],
+        "InstructionsLoaded": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "python",
+                        "args": [
+                            "C:\\Users\\hanse\\.claude\\hooks\\observe.py"
+                        ],
+                        "async": true
+                    }
+                ]
+            }
+        ],
+        "PostToolUse": [
+            {
+                "matcher": "Read|Grep|Glob|Bash|PowerShell|Edit|Write|Agent|Workflow",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "python",
+                        "args": [
+                            "C:\\Users\\hanse\\.claude\\hooks\\observe.py"
+                        ],
+                        "async": true
+                    }
+                ]
+            }
+        ],
+        "Stop": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "python",
+                        "args": [
+                            "C:\\Users\\hanse\\.claude\\hooks\\observe.py"
+                        ],
+                        "async": true
+                    }
+                ]
+            }
+        ],
+        "SubagentStop": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "python",
+                        "args": [
+                            "C:\\Users\\hanse\\.claude\\hooks\\observe.py"
+                        ],
+                        "async": true
+                    }
+                ]
+            }
+        ]
+    },
+    "effortLevel": "xhigh",
+    "skipWorkflowUsageWarning": true,
+    "extraKnownMarketplaces": {
+        "msw-ai-coding-plugins-official": {
+            "source": {
+                "source": "github",
+                "repo": "MSW-Git/msw-ai-coding-plugins-official"
+            }
+        },
+        "ponytail": {
+            "source": {
+                "source": "github",
+                "repo": "DietrichGebert/ponytail"
+            }
+        }
+    }
 }
