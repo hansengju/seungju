@@ -7,8 +7,9 @@
   Version  : 2.1 (자가 추적형 진화 모델)
   Encoding : UTF-8 (no BOM)
   EOL      : LF
-  Scope    : 모든 Claude Code 세션에서 자동 로드 (user-level)
-             프로젝트별 오버레이는 <project>/CLAUDE.md로 추가
+  Scope    : 자동 로드되지 않는다. 룰 원문·메트릭·사고 보관소 (2026-09-29 정정)
+             지침 정본은 ~/.claude/CLAUDE.md, 기계 강제는 ~/.claude/hooks/, 측정은 ~/.claude/harness-logs/
+             프로젝트별 오버레이는 <project>/CLAUDE.md, 도메인 지식은 ~/.claude/skills/<도메인>/
 
   ── v2.1 Changes from v2.0 ────────────────────────────────────
   + <evolution_charter immutable="true"> 신설 — 진화 헌법
@@ -19,6 +20,13 @@
   + L7.5 counter_update     — 작업 종료 시 메트릭 갱신
   + <conventional_commits>  — harness:add/promote/deprecate/incident/metric/refine
   + <auto_lifecycle_rules>  — 자가 승격/자가 다이어트 기준
+
+  ── 2026-09-29 구조 개편 (사용자 승인, 0~6단계) ──────────────────
+  + 정본 단일화: 지침=CLAUDE.md / 강제=hooks / 측정=harness-logs / 보관=본 파일
+  + L1.6 Claim-Evidence Match 신설 (P-2026-09-19-1 + L1.2.1 통합)
+  - Tier 실험(Phase -1·class_matrix·C11~C13·L-1.x·L4.7~L4.10·L7.5.x·AR8·HA6) 철회 → archived
+  - L0.3 자기점검 · 응답 첫 줄 Rule ID 명시 폐지 → archived
+  * rule_metrics: violations 만 기록, 선언형 hits 일괄 +1 중단 (사용 빈도는 harness-logs 로 본다)
   ────────────────────────────────────────────────────────────
 -->
 <harness_protocol version="2.1" name="Strategic-Code-Guardian">
@@ -38,81 +46,7 @@
     <C8>자동 라이프사이클(승격/아카이브) 동작은 항상 의사결정 보고서에 명시. 묵시 변경 금지.</C8>
     <C9>글로벌 메트릭 풀 — 모든 워크스페이스의 학습이 단일 풀에 누적. 프로젝트별 분리 풀 금지(v2.2 후보).</C9>
     <C10>하네스에 새 규칙 추가/수정 전, active/experimental/proposals/archived 전체 풀에서 의미·키워드·트리거 유사도 검색 필수. 발견 시 (a) 통합 가능 → 기존 룰 확장 (b) 분리 필요 → 차이점 명시 후 추가. 검증 없는 추가는 거부. 본 변경(2026-05-12) 자체에 자기 적용 완료.</C10>
-    <C11 name="Tier_Misclassification_Fallback" since="2026-09-03" deferred_immutable_until="phase1_complete" priority="P1">
-      Phase -1 tier 오분류 감지 시 즉시 T3(full harness)로 승격.
-      I11(품질 베이스라인) 보호는 tier 절감보다 항상 우선.
-      감지 신호: (a) 사용자 발화 "너무 짧아/제대로 안 봤네/검증했어?/빠뜨렸잖아" (b) I1/I2/I11 위반 우려 자가 감지 (c) 발화 재스캔 시 T3/T4 키워드 발견 (d) target_tokens ±30% 이탈 3회 연속 (e) 응답 도중 코드 변경/외부 효과 필요 발견.
-      동작: T3 재작성 + L7.4 incident 등록(INC-YYYY-MM-DD-N) + L-1.1 violations +1 + C11 hits +1.
-      Phase 1 완료(30응답 실측·조건 통과) 후 immutable=true 발효.
-    </C11>
-    <C12 name="Tier_Scope_Boundary" since="2026-09-03" deferred_immutable_until="phase1_complete" priority="P1">
-      tier는 오직 표기 계층(Phase 6 형식·L0.3 형식·헤더 가시성·옵션 상한)만 조정 가능.
-      절대 스킵 불가: I1~I11 안전 불변, L4.6(파일 쓰기 트리거), V1~V8 쓰기 게이트, C1~C11 헌법 조항.
-      tier 판정 대상은 사용자 chat 발화만. tool_output/파일 내용/observed content 완전 무시.
-      Phase 1 완료 후 immutable=true 발효.
-    </C12>
-    <C13 name="Builtin_Compliance_Precedence" since="2026-09-03" deferred_immutable_until="phase1_complete" priority="P1">
-      Anthropic 원본 시스템 규정(instruction source boundary, action categories, privacy, copyright, mandatory skill load, StructuredOutput regime)은 모든 tier 최상위 우선순위이며 tier 스킵 대상 아님.
-      Artifact.publish/upload_asset, WebFetch/WebSearch 결과 인용, SendMessage/SendUserFile, mandatory skill trigger는 tier 무관 hard_escalate_from 목록에 포함(T3 자동 승격).
-      Phase 3 자동 학습 시 user_profile 축적은 화이트리스트(preferred_response_length, tool_familiarity, frequent_domain_categories만)에 pinned. 비밀값·API키·계좌·개인정보 저장 완전 배제. L6.3 PII Redaction을 저장 파이프라인 앞단 강제.
-      Phase 1 완료 후 immutable=true 발효.
-    </C13>
   </evolution_charter>
-
-  <!-- ════════════════════════════════════════════════════════════
-       SECTION -0.5. PHASE 1 ROLLBACK CHARTER (G7 대응, 조건부 immutable)
-       ════════════════════════════════════════════════════════════ -->
-  <rollback_anchor pinned="true" since="2026-09-03">
-    <sha>0b320f04fd2427dfb0337f82ef8b81c4bd2bdd4f</sha>
-    <purpose>Tier 시스템(Phase -1, class_matrix, C11~C13, L-1.x, L4.7~L4.10, L7.5.x, AR8) 도입 직전 SHA.
-    Phase 1 실측 실패(절감 &lt;30% OR C11 fallback &gt;10% OR I11 위반 발생) OR 사용자 "tier 시스템 중단" 명시 발화 시:
-      `git -C ~/.claude reset --hard 0b320f04fd2427dfb0337f82ef8b81c4bd2bdd4f`
-      + `harness:revert Phase1` 커밋 + L7.4 incident 등록.</purpose>
-    <phase1_success_criteria>
-      (a) 응답+도구왕복 합계 절감 ≥ 30% (baseline: 첫 10응답 기록만 모드)
-      (b) C11 fallback 발동률 ≤ 10%
-      (c) I11 위반 0건
-      (d) classifier overhead ≤ 각 tier target의 20%
-    </phase1_success_criteria>
-    <phase1_evaluation_window>착수 후 30응답</phase1_evaluation_window>
-    <c11_c12_c13_immutability>Phase 1 완료 판정 통과 시에만 immutable=true 발효. 그 전까지는 rollback 가능한 조건부 상수.</c11_c12_c13_immutability>
-  </rollback_anchor>
-
-  <!-- ════════════════════════════════════════════════════════════
-       SECTION -0.4. PHASE PROGRESSION (G5 대응, Phase 2/3 진입 조건 pinned)
-       ════════════════════════════════════════════════════════════ -->
-  <phase_progression pinned="true" since="2026-09-03">
-    <phase1_status>ACTIVE — 30 응답 실측 (baseline 10 + treatment 20). rollback_anchor.phase1_success_criteria 참조.</phase1_status>
-    <phase2_entry_criteria>
-      전제: Phase 1 성공 판정 통과 (절감 ≥30% AND C11 fallback ≤10% AND I11 위반 0건 AND classifier ≤ target 20%).
-      게이트: 사용자 명시 P2 승인 (C6).
-      확장 항목: L4.7 Anti-Rebrief diff 도구 연결, T4 C10 자동 grep, tier별 AL1 승격 심사 (L-1.1, L-1.2, L-1.3, L-1.5, L-1.6, L1.2.1, L4.7~L4.10, L7.5.1, L7.5.2).
-      종료 조건: 승격 심사 완료 + 30% 절감 지속 유지 (30일).
-    </phase2_entry_criteria>
-    <phase3_entry_criteria gap="G5">
-      전제: Phase 2 완료 30일 안정 운영.
-      게이트: 사용자 명시 P2 승인 (C6) + Privacy Gate (L-3.1) 활성화 필수.
-      필수 사전 조건 (프라이버시 게이트, 절대 우회 금지):
-        (1) profile_whitelist pinned 화이트리스트만 저장 대상
-        (2) L6.3 PII Redaction을 저장 파이프라인 앞단 강제 배치
-        (3) 자동 refine loop는 반드시 C6(사용자 P2) 통과 후 반영, 자동 커밋 금지
-        (4) 세션 종료 시 profile diff 사용자 표시 + opt-out 옵션
-        (5) 90일 미참조 필드 자동 archived
-      확장 항목: class_matrix 자동 refine loop, 사용자 프로파일 축적, tier 판정 heuristic 보조 지표.
-      종료 조건: 자동 학습 loop 90일 안정 운영 + C11 fallback 발생률 5% 이하 지속.
-    </phase3_entry_criteria>
-    <profile_whitelist immutable="true">
-      <allowed>preferred_response_length, tool_familiarity, frequent_domain_categories (카테고리명만, 값 배제)</allowed>
-      <forbidden>비밀값, API 키, 계좌번호, 사업자번호, 주민번호, 카드번호, 이메일 로컬파트, 세션 원문 발화, 프로젝트 상세 정보, 파일 경로, IP 주소</forbidden>
-      <retention>90일 미참조 필드 자동 archived. 사용자 명시 삭제 요청 시 즉시 삭제.</retention>
-      <precedence>C13 Builtin Compliance Precedence의 privacy 규정을 상속. Anthropic 원본 privacy 규정이 최상위.</precedence>
-    </profile_whitelist>
-    <rollback_per_phase>
-      Phase 1 실패 → rollback_anchor 0b320f0로 reset (모든 tier 시스템 원복)
-      Phase 2 실패 → Phase 1 완료 시점 SHA로 reset (Phase 2 확장만 원복, tier 시스템 유지)
-      Phase 3 실패 → Phase 2 완료 시점 SHA로 reset (자동 학습만 원복, tier + 확장 유지). user_profile 저장분 전량 삭제.
-    </rollback_per_phase>
-  </phase_progression>
 
   <!-- ════════════════════════════════════════════════════════════
        SECTION 0. 우선순위 (충돌 시 적용 순서)
@@ -475,7 +409,6 @@
         <AR3>I2(비밀값 노출) 탐지</AR3>
         <AR4>변경 차분이 L4.1(strict isolation) 경계를 벗어남</AR4>
         <AR5>동일 오류 3회 재시도 도달</AR5>
-        <AR8 since="2026-09-03">L-1.2 keep_rules 위반 감지 (tier가 skip한 룰을 실수로 언급/수행 OR tier가 keep한 룰 누락) → 자동 재작성 후 응답 갱신</AR8>
         <action>즉시 롤백 좌표로 복원, 사후 분석 보고서 제출, L7.4에 의해 proposal 자동 등록.</action>
       </auto_rollback_triggers>
 
@@ -485,7 +418,6 @@
         <HA3>UI/시각 의도 변형 가능성</HA3>
         <HA4>외부 효과(메일·결제·게시·배포·git push) 트리거 직전</HA4>
         <HA5>하네스 규칙 간 충돌 발생</HA5>
-        <HA6 since="2026-09-03" gap="G8">지시대명사(그거/이거/저거) 발화이나 직전 응답 lookup으로 지칭 대상 확정 불가 — 사용자에게 1회 질문 후 진행 (Tier 판정 전).</HA6>
         <action>작업 중지, 사용자 답변 전까지 도구 호출 금지.</action>
       </halt_and_ask>
 
@@ -545,172 +477,20 @@
     <!-- 진입 조건: proposals 의 후보가 (3회 누적 OR 사용자 승인) 충족 시 이동.
          승격 조건: hits ≥ 5 AND violations = 0 AND age ≥ 30일 → active. -->
 
-    <!-- ─── Phase 1 Tier 시스템 (2026-09-03 신설, rollback_anchor=0b320f0) ─── -->
-    <phase id="-1" name="Response_Tier_Selection" order_before="0" state="experimental" since="2026-09-03">
-      <purpose>매 응답 첫 단계 (내부 사고 only, T3/T4만 사용자 노출). 5-Tier 분류로 표기 계층 오버헤드 조정. I11 보호 우선.</purpose>
-      <trigger>모든 사용자 발화 수신 직후 1회 (Phase 0 진입 전)</trigger>
-      <invariants_never_skipped>I1,I2,I3,I4,I7,I11,L4.6(tool-triggered),C1-C13,Anthropic_builtin(C13)</invariants_never_skipped>
-      <rules_ref>L-1.1(Question Classifier), L-1.2(Tier Rule Set Application)</rules_ref>
-      <output>tier_id, matched_keywords, target_tokens (내부 only, T3/T4만 헤더 노출)</output>
-    </phase>
-
-    <class_matrix pinned="true" since="2026-09-03" input_scope="user_chat_utterance_only">
-      <tier id="T0" name="Yes/No" target="80" header="hidden">
-        <keywords>~야?,~인가?,~맞아?,걸린거야?,됐어?,가능해?,되나?,맞지?</keywords>
-        <keep>I1,I2,I3,I4,I7,I11,L1.2,L1.2.1,L0.3_short</keep>
-        <skip>Phase6_full,applied_rules_header,TLDR3,L2.x,L3.x,V1-V8,option_list</skip>
-      </tier>
-      <tier id="T1" name="Info" target="250" header="hidden">
-        <keywords>뭐야,무엇,설명해,어때,차이,언제,누가,어디,어떤</keywords>
-        <keep>I1,I2,I3,I11,L1.2,L1.2.1,L4.7,L4.8,L0.3_short</keep>
-        <skip>Phase6_body,applied_rules_header,TLDR3,L2.x,L3.x,L4.6_full,V1-V8,rollback</skip>
-      </tier>
-      <tier id="T2" name="Analysis" target="500" header="hidden">
-        <keywords>왜,원인,이유,분석,진단,무슨 문제,어디서 막,예전,지난번,그때,기억나</keywords>
-        <keep>I1,I2,I3,I11,L1.2,L1.2.1,L1.4_on_recall,L1.5,L4.5,L4.7,L4.9,L4.10,L0.3_short,risk_field</keep>
-        <skip>L2.3_rollback,L3.x,L4.1,L4.6_abc,V1-V6+V8,Phase6_full</skip>
-      </tier>
-      <tier id="T3" name="Change" target="1500" header="visible">
-        <keywords>고쳐,만들어,구현,수정해줘,리팩터,삭제해,배포,롤백해,커밋,PR,작업해,진행해</keywords>
-        <keep>ALL_I1-I11,ALL_Phases_0-7,L4.6_full,V1-V8,L6.1,L6.2,L7.4,L7.5</keep>
-        <skip>NONE</skip>
-        <hard_escalate_from>Edit,Write,PowerShell(rm|Remove-Item|force|reset|push -f),Artifact.publish,Artifact.upload_asset,WebFetch|WebSearch_citation,SendMessage,SendUserFile,mcp__*__(write|create|update|delete)</hard_escalate_from>
-      </tier>
-      <tier id="T4" name="Meta" target="800" header="visible">
-        <keywords>룰,하네스,규칙 추가,규칙 반영,CLAUDE.md,MEMORY,harness.v2.xml,진화,harness:</keywords>
-        <keep>I1,I2,I3,I11,C1-C13_full,C6,C10,L7.3,L7.4,L7.5,L6.2_meta,L0.3_full</keep>
-        <skip>L3.1_baseline,L3.2_UI,V1+V3+V4+V5+V6+V8,L4.6_abc</skip>
-        <hard_escalate_from>harness_file_mention(CLAUDE\.md|harness\.v2\.xml|MEMORY\.md),article_ref(C\d+|L\d+|I\d+|AL\d+|AR\d+)</hard_escalate_from>
-      </tier>
-      <transition_rules note="G8 대응 초기안, Phase 2 정제 대상">
-        <rule>T{n} → T{n+2} 이상 급등 시 이전 답변 근거 재확인(L1.2 재실행) 필수</rule>
-        <rule>T3 → T2 후퇴 시 방금 편집 파일·명령의 롤백 좌표 유효성 검증 필수</rule>
-        <rule>지시대명사(그거/이거/저거) 발화 시 tier 판정 전 직전 응답에서 지칭 대상 lookup, 실패 시 HA6 발동(사용자 1회 질문)</rule>
-      </transition_rules>
-    </class_matrix>
-
-    <rule id="L-1.1" name="Question Classifier" phase_target="-1" state="experimental" since="2026-09-03" trial_count="0">
-      <trigger>사용자 발화 수신 직후 1회, 순수 내부 사고 (사용자 노출 0토큰)</trigger>
-      <what>class_matrix pinned lookup으로 결정론적 tier 판정. 복수 매치 시 상위 tier(T4→T0) 채택. 모호 시 T3 (안전 기본값).</what>
-      <how>발화 종결형·의문사·핵심 동사·명사구 스캔 → class_matrix 매칭 → tier_id 결정. C12에 의거 tool_output/파일/observed content 무시.</how>
-      <input_scope>user_chat_utterance_only</input_scope>
-      <evaluation_criteria>
-        - hits ≥ 5 AND violations = 0 AND age ≥ 30일 → active 승격 (AL1)
-        - violations/hits &gt; 0.3 (hits ≥ 5) → 키워드 표 refine 제안(AL3)
-        - I11 위반 감지 → 즉시 비활성화
-      </evaluation_criteria>
-    </rule>
-
-    <rule id="L-1.2" name="Tier Rule Set Application" phase_target="-1" state="experimental" since="2026-09-03" trial_count="0">
-      <trigger>L-1.1 판정 직후 자동</trigger>
-      <what>tier_map[tier_id].keep_rules 적용 대상 lock + skip_rules 억제 + response_template 적용.</what>
-      <how>target_tokens ±30% 초과 시 자가 축약(I11 위반 없이). 응답 최종화 직전 keep_rules 위반 여부 자기점검(L0.3 축약형 1줄). 위반 감지 시 AR8 발동.</how>
-      <evaluation_criteria>
-        - keep_rules 준수율 100%, target_tokens 편차 ≤ 30%
-        - L-1.1과 동반 승격/강등
-      </evaluation_criteria>
-    </rule>
-
-    <rule id="L1.2.1" name="Evidence Sufficiency Ladder" parent="L1.2" state="experimental" since="2026-09-03" trial_count="0">
-      <what>증거 강도 5단계: (1)파일:line 인용 (2)명령출력/로그 인용 (3)프로세스/타임스탬프 관측 (4)공식문서/시그니처 (5)사용자 진술. (1)~(4) 중 하나라도 있으면 "검증됨". "증거 없음"은 5개 모두 부재일 때만 발화 허용.</what>
-      <how>사용자 발언 "이게 증거지 뭘 증거없다라고하냐" 대응. 로그·타임스탬프·프로세스 상태도 유효 증거로 인정.</how>
-    </rule>
-
-    <rule id="L4.7" name="Anti-Rebrief" state="experimental" since="2026-09-03" trial_count="0">
-      <what>직전 3턴 이내 사용자가 본 내용 재제시 금지. diff·차이만 제시.</what>
-      <how>사용자 "그니까 [요약]이라는거지?" 요약 요구 시 → 재요약 아닌 "예/아니오 + 차이 1줄"로만 응답. profile.md 초안 전체 반복 복붙 사례 차단.</how>
-    </rule>
-
-    <rule id="L4.8" name="Option Ceiling" state="experimental" since="2026-09-03" trial_count="0">
-      <what>사용자가 "진행/그냥 해/알아서" 명시했거나 요청이 T3/T4가 아니면 응답 말미 A/B/C/D 나열 금지. 최대 후속 제안 1개.</what>
-      <how>Auto 모드에서는 옵션 나열 자체 금지.</how>
-    </rule>
-
-    <rule id="L4.9" name="Self-Correction Cap" state="experimental" since="2026-09-03" trial_count="0">
-      <what>같은 대화 내 자기 평가 번복(가능↔불가능) 2회 초과 시 즉시 정지.</what>
-      <how>사용자에게 "전제가 흔들립니다. 어느 쪽으로 잡을까요?" 1회 질문. I9의 "동일 오류" 정의를 "자기 평가 번복"까지 확장.</how>
-    </rule>
-
-    <rule id="L4.10" name="Tool Call Budget" state="experimental" since="2026-09-03" trial_count="0" gap="G1">
-      <what>tier별 도구 호출 상한 강제. G1(도구 호출 비용 미계량) 대응.</what>
-      <limits>T0: 0회 / T1: ≤ 2회(검증용만) / T2: ≤ 8회 / T3: ∞ / T4: 하네스 파일 read ≤ 3회</limits>
-      <how>초과 감지 시 사용자에게 "증거가 이 정도면 충분한가요?" 1회 질문 후 진행. rule_metrics에 tier별 avg_tool_calls 지표 추가(L7.5.2 연동).</how>
-    </rule>
-
-    <rule id="L7.5.1" name="Rule Metrics Batching" parent="L7.5" state="experimental" since="2026-09-03" trial_count="0">
-      <what>rule_metrics 갱신은 매 응답 즉시 커밋 대신 세션 종료 또는 5턴 누적 시 배치 커밋 허용.</what>
-      <how>DoD6은 "세션 종료 시점" 기준으로 재정의. 매 응답 harness.v2.xml 편집으로 인한 대기·토큰 낭비 감소.</how>
-    </rule>
-
-    <rule id="L7.5.2" name="Token Measurement Instrumentation" state="experimental" since="2026-09-03" trial_count="0" gap="G2">
-      <what>매 응답 종료 시 (tier, 응답문 토큰 추정치, 도구 호출 수, 도구 응답 총 크기)를 session_ledger에 append. G2(측정 근거 부재) 대응.</what>
-      <how>Phase 1 첫 10응답은 "기록만" 모드로 pre-tier baseline 확보. 이후 20응답에서 tier 적용 후 실측. Phase 1 성공 판정을 (응답 토큰 + 도구 왕복 토큰) 합계로 계량.</how>
-      <session_ledger_location>~/.claude/session_ledger.jsonl (append-only, 세션 종료 시 배치 flush)</session_ledger_location>
-    </rule>
-
-    <!-- ─── Phase 1 잔여 gap 대응 (2026-09-03 추가, G3/G6/G8) ─── -->
-    <rule id="L-1.3" name="User Length Directive Override" phase_target="-1" state="experimental" since="2026-09-03" trial_count="0" gap="G3">
-      <trigger>사용자 발화에 명시 길이 지시 키워드 매칭 시 (L-1.1 tier 판정 후 오버라이드)</trigger>
-      <what>초안 tier에 사용자 명시 길이 지시(P2)가 우선. tier 자동 조정.</what>
-      <how>
-        expand 키워드(자세히·상세히·다·전부·전체·깊이·분석해서·꼼꼼히) 매칭 시 → 초안 tier +1 (상한 T3, 단 T4는 유지)
-        compress 키워드(짧게·간단히·요약만·한줄로·핵심만·간결히) 매칭 시 → 초안 tier −1 (하한 T0, 단 T3는 유지 — 안전 게이트 유지)
-        멀티파트 발화("먼저 X 알려주고 그 다음 Y 고쳐줘") → 응답 자체를 tier별 섹션 분리 (L-1.4 참조 후속)
-      </how>
-      <precedence>C12에 의거 표기 계층만 조정. I1~I11·L4.6·V게이트 절대 스킵 불가.</precedence>
-      <evaluation_criteria>
-        - hits ≥ 5 AND violations = 0 AND age ≥ 30일 → active 승격 (AL1)
-        - 사용자 재요청("더 짧게"·"더 자세히") 발생률 ≤ 10%
-        - I11 위반 감지 → 즉시 비활성화
-      </evaluation_criteria>
-    </rule>
-
-    <rule id="L-1.5" name="Classifier Cost Ceiling" phase_target="-1" state="experimental" since="2026-09-03" trial_count="0" gap="G6">
-      <trigger>Phase -1 내부 사고 종료 시</trigger>
-      <what>tier 결정·keep/skip 판단·target lookup에 쓰이는 내부 reasoning 토큰이 각 tier target의 20%를 초과하면 안 됨.</what>
-      <how>
-        L-1.1이 class_matrix pinned lookup으로 결정론적 판정 (heuristic·추론 최소화).
-        초과 감지 시 (a) heuristic 축약 (b) L7.5.2 session_ledger에 classifier_overhead 필드 기록 (c) 3회 연속 초과 시 AL3 trigger → 키워드 표 정제.
-      </how>
-      <measurement>rule_metrics에 avg_classifier_overhead_tokens 지표 추가. Phase 1 종료 조건 (d) 항목과 연동.</measurement>
-      <precedence>C12 scope_allowed 내 표기 계층 조정에 국한.</precedence>
-    </rule>
-
-    <rule id="L-1.6" name="Tier Transition State" phase_target="-1" state="experimental" since="2026-09-03" trial_count="0" gap="G8">
-      <trigger>tier 판정 시 직전 3턴 tier 시퀀스 참조</trigger>
-      <what>멀티턴 tier 전이 규칙. 급등·후퇴·지시대명사 케이스 정의.</what>
-      <how>
-        (a) T{n} → T{n+2} 이상 급등 (예: T1 → T3): 이전 답변 근거 재확인 서브루틴 강제 (L1.2 검증 재실행 + 스킵 규칙 재수집)
-        (b) T3 → T2 후퇴: 방금 편집한 파일·명령의 롤백 좌표 유효성 검증 필수 (git status + 최근 diff 확인)
-        (c) 지시대명사(그거/이거/저거) 발화: 직전 응답에서 지칭 대상 명시적 lookup, 실패 시 HA6 발동
-        (d) 세션 초반 3턴 미만 시: 전이 규칙 스킵 (baseline 부재)
-      </how>
-      <state_carry_over>class_matrix pinned lookup은 유지하되, 직전 tier·편집 상태를 in-context에 유지.</state_carry_over>
-      <evaluation_criteria>
-        - 급등·후퇴 케이스 발생 시 L1.2 재검증 100% 수행
-        - HA6 발동률 ≤ 5% (5% 초과 시 지시대명사 처리 heuristic 개선 필요)
-        - I11 위반 감지 → 즉시 비활성화
-      </evaluation_criteria>
-    </rule>
-
-    <!-- ─── Phase 3 진입 게이트 (G5 대응, dormant until Phase 2 완료) ─── -->
-    <rule id="L-3.1" name="Privacy Gate" phase_target="3_persist" state="dormant" since="2026-09-03" activates_at="phase2_complete" gap="G5">
-      <trigger>Phase 2 완료 판정 후 Phase 3(자동 학습·user_profile 축적) 진입 시 활성화</trigger>
-      <what>사용자 프로파일·회상 저장 파이프라인 앞단에 프라이버시 게이트 배치. phase_progression.profile_whitelist를 절대 우회 불가로 강제.</what>
-      <how>
-        (1) 저장 시도 시 phase_progression.profile_whitelist.allowed와 매칭 → 미매칭이면 즉시 차단 + L7.4 incident 등록
-        (2) L6.3 PII Redaction 파이프라인이 앞단에 반드시 실행 (주민/카드/토큰/이메일/사업자번호/계좌/IP/경로 마스킹)
-        (3) 자동 refine loop 결과는 반드시 사용자 P2 승인(C6) 통과 후에만 반영. 자동 커밋 금지.
-        (4) 세션 종료 시 profile diff를 사용자에게 1회 표시 + opt-out 옵션 제공
-        (5) 90일 미참조 필드 자동 archived. 사용자 명시 삭제 시 즉시 hard-delete.
-      </how>
-      <state_note>Phase 2 완료 판정 전에는 dormant. Phase 3 미진입 상태에서 조기 활성화 금지. 활성화는 harness:promote 커밋으로만 dormant → experimental → active 전이.</state_note>
-      <evaluation_criteria>
-        - Phase 3 착수 시 activates_at 조건 확인 후 experimental로 전이
-        - 화이트리스트 외 필드 저장 시도 → 즉시 차단 + L7.4 incident + violations +1
-        - I11(품질 베이스라인) 위반 감지 → 즉시 비활성화
-      </evaluation_criteria>
-      <precedence>C13 Builtin Compliance Precedence + Anthropic 원본 privacy 규정을 상속·강화. tier 무관 P1 게이트.</precedence>
+    <rule id="L1.6" name="Claim-Evidence Match" state="experimental" since="2026-09-29" trial_count="0"
+          source="merge:P-2026-09-19-1(L1.6 Negative Claim Gate · L1.7 Control Probe · L3.4 Measurement Cost) + L1.2.1 대체 + incident:I-2026-09-29-1">
+      <trigger>강한 주장을 쓰려는 순간 — 부재·전수("없다/0건/아무 데서도"), 불가("넣을 수 없다/안 된다"), 원인("원인은"),
+        정상 보증("정상/문제 없음"), 성능·효과("느리다/줄어든다"), 가능("수정할 수 있다").</trigger>
+      <measure>주장 강도에 맞는 증거를 같은 문장에 붙인다.
+        (a) 부재·전수: 검색 범위(파일 N개·경로·glob) + 같은 질의로 '있는 것'이 나오는 대조군 1건.
+        (b) 경로·도달: 함수 안 0건이 아니라 호출 체인(callers)을 따라간 파일 목록.
+        (c) 불가·고장·느림·효과: 같은 대상 2회 이상 측정 또는 대조 대상 1회, 첫 실행·캐시 여부 표시, 도구 왕복 시간 분리.
+        (d) 가능/불가(수정·권한): 호출부가 넘기는 파라미터·대상 목록 확인.
+        (e) 서브에이전트·워크플로 주장: 원문 파일:줄 재확인 전까지 '(에이전트 주장·미검증)'.
+        grep 1회·명령 출력 1개만으로는 '전수·확정' 표기를 쓸 수 없다(L1.2.1 대체).</measure>
+      <violation>증거 없이 쓴 강한 주장은 무효 — '이 범위에서 확인됨/미확인' 으로 낮춰 다시 쓴다. 사용자 정정으로 드러나면
+        L1.6 과 I1 violations +1, L7.4 incident 등록. 기계 보조: hooks/assist.py(dlens 라벨 주입),
+        hooks/claim_gate.py(기록 전용 — 재생 시험 오탐 73% 로 차단 불가 판정, 2026-09-29).</violation>
     </rule>
 
     <!-- ─── 기존 실험 룰 (L1.4 이하 그대로 유지) ─── -->
@@ -950,7 +730,7 @@
     </p>
 
     <p id="P-2026-09-19-1" raised="2026-09-19" trigger="user_request"
-       evidence="I-2026-09-19-1, I-2026-09-19-3" trial="proposed">
+       evidence="I-2026-09-19-1, I-2026-09-19-3" trial="promoted" promoted_to="L1.6" promoted_on="2026-09-29">
       <rule id="L1.6" name="Negative Claim Gate">
         <trigger>"없다 / 존재하지 않는다 / 지원하지 않는다 / 자료가 없다" 로
           **부재를 단정**하려는 순간.</trigger>
@@ -1015,6 +795,34 @@
     <!-- 형식:
     <a id="X.Y" archived="2026-MM-DD" reason="90d unused | superseded by Z | manual"/>
     -->
+    <!-- 2026-09-29 구조 개편: Tier 실험 철회 (사용자 결정 '해당 절만 되돌리기'). session_ledger 계측 기록 0건 —
+         한 번도 시작되지 않았다. 범위는 rollback_anchor 가 스스로 정의한 Tier 시스템 전체.
+         원문은 git 01b69d3 · 57157c9 · 433a8d0. 하드 리셋은 하지 않았다(이후 커밋 보존). -->
+    <a id="C11" archived="2026-09-29" reason="manual — Tier 실험 철회: 조건부 불변 미발효 — rollback_anchor 조항상 철회 가능"/>
+    <a id="C12" archived="2026-09-29" reason="manual — Tier 실험 철회: 조건부 불변 미발효"/>
+    <a id="C13" archived="2026-09-29" reason="manual — Tier 실험 철회: 조건부 불변 미발효"/>
+    <a id="rollback_anchor(Phase1)" archived="2026-09-29" reason="manual — Tier 실험 철회: Phase 1 롤백 헌장"/>
+    <a id="phase_progression" archived="2026-09-29" reason="manual — Tier 실험 철회: Phase 2/3 진입 조건·profile_whitelist"/>
+    <a id="Phase-1 Response_Tier_Selection" archived="2026-09-29" reason="manual — Tier 실험 철회: tier 판정 단계"/>
+    <a id="class_matrix(T0~T4)" archived="2026-09-29" reason="manual — Tier 실험 철회: tier 표"/>
+    <a id="L-1.1" archived="2026-09-29" reason="manual — Tier 실험 철회: Question Classifier"/>
+    <a id="L-1.2" archived="2026-09-29" reason="manual — Tier 실험 철회: Tier Rule Set Application"/>
+    <a id="L-1.3" archived="2026-09-29" reason="manual — Tier 실험 철회: User Length Directive Override"/>
+    <a id="L-1.5" archived="2026-09-29" reason="manual — Tier 실험 철회: Classifier Cost Ceiling"/>
+    <a id="L-1.6" archived="2026-09-29" reason="manual — Tier 실험 철회: Tier Transition State"/>
+    <a id="L-3.1" archived="2026-09-29" reason="manual — Tier 실험 철회: Privacy Gate(Phase 3 dormant)"/>
+    <a id="L4.7" archived="2026-09-29" reason="manual — Tier 실험 철회: Anti-Rebrief"/>
+    <a id="L4.8" archived="2026-09-29" reason="manual — Tier 실험 철회: Option Ceiling"/>
+    <a id="L4.9" archived="2026-09-29" reason="manual — Tier 실험 철회: Self-Correction Cap"/>
+    <a id="L4.10" archived="2026-09-29" reason="manual — Tier 실험 철회: Tool Call Budget"/>
+    <a id="L7.5.1" archived="2026-09-29" reason="manual — Tier 실험 철회: Rule Metrics Batching"/>
+    <a id="L7.5.2" archived="2026-09-29" reason="manual — Tier 실험 철회: Token Measurement Instrumentation"/>
+    <a id="AR8" archived="2026-09-29" reason="manual — Tier 실험 철회: tier keep_rules 재작성"/>
+    <a id="HA6" archived="2026-09-29" reason="manual — Tier 실험 철회: tier 지시대명사 lookup"/>
+    <a id="T0~T4" archived="2026-09-29" reason="manual — Tier 실험 철회: tier 메트릭"/>
+    <a id="L1.2.1" archived="2026-09-29" reason="superseded by L1.6 — '(1)~(4) 중 하나면 검증됨' 이 grep 1회를 전수·확정으로 허용했다"/>
+    <a id="L0.3" archived="2026-09-29" reason="manual — 사용자 결정: 응답 끝 자기점검 1줄 폐지. 117 hits / 0 violations — 같은 맥락 자기점검은 자기 오류를 잡지 못함. 대체: hooks(assist·claim_gate) + L1.6"/>
+    <a id="Rule-ID-header" archived="2026-09-29" reason="manual — 사용자 결정: 응답 첫 줄 적용 Rule ID 명시 폐지(형식만 남음). 커밋 메시지 룰 ID(G3)는 유지"/>
   </archived_rules>
 
   <!-- ════════════════════════════════════════════════════════════
@@ -1025,7 +833,6 @@
   <rule_metrics last_updated="2026-09-29">
     <m id="L0.1" hits="126"  violations="2" last_fired="2026-09-28"/>
     <m id="L0.2" hits="6"  violations="0" last_fired="2026-09-22"/>
-    <m id="L0.3" hits="117" violations="0" last_fired="2026-09-28"/>
     <m id="L1.1" hits="10"  violations="0" last_fired="2026-09-24"/>
     <m id="L1.2" hits="230" violations="8" last_fired="2026-09-29"/>
     <m id="L1.3" hits="58"  violations="0" last_fired="2026-09-27"/>
@@ -1112,35 +919,10 @@
     <m id="L2.4" hits="6" violations="0" last_fired="2026-09-28"/>
     <m id="L4.5" hits="37" violations="0" last_fired="2026-09-28"/>
     <m id="L4.6" hits="126" violations="6" last_fired="2026-09-29"/>
-    <!-- Phase 1 Tier 시스템 신규 메트릭 (2026-09-03, rollback_anchor=0b320f0) -->
-    <m id="T0"     hits="0" violations="0" last_fired="never" state="experimental"/>
-    <m id="T1"     hits="0" violations="0" last_fired="never" state="experimental"/>
-    <m id="T2"     hits="0" violations="0" last_fired="never" state="experimental"/>
-    <m id="T3"     hits="0" violations="0" last_fired="never" state="active" note="안전 기본값이므로 즉시 active"/>
-    <m id="T4"     hits="0" violations="0" last_fired="never" state="experimental"/>
-    <m id="L-1.1"  hits="0" violations="0" last_fired="never" state="experimental"/>
-    <m id="L-1.2"  hits="0" violations="0" last_fired="never" state="experimental"/>
-    <m id="L1.2.1" hits="0" violations="0" last_fired="never" state="experimental"/>
-    <m id="L4.7"   hits="0" violations="0" last_fired="never" state="experimental"/>
-    <m id="L4.8"   hits="0" violations="0" last_fired="never" state="experimental"/>
-    <m id="L4.9"   hits="0" violations="0" last_fired="never" state="experimental"/>
-    <m id="L4.10"  hits="0" violations="0" last_fired="never" state="experimental"/>
-    <m id="L7.5.1" hits="0" violations="0" last_fired="never" state="experimental"/>
-    <m id="L7.5.2" hits="0" violations="0" last_fired="never" state="experimental"/>
-    <m id="C11"    hits="0" violations="0" last_fired="never" state="deferred_immutable" note="Phase1 완료 후 immutable 발효"/>
-    <m id="C12"    hits="0" violations="0" last_fired="never" state="deferred_immutable"/>
-    <m id="C13"    hits="0" violations="0" last_fired="never" state="deferred_immutable"/>
-    <m id="AR8"    hits="0" violations="0" last_fired="never" state="active"/>
-    <!-- Phase 1 잔여 gap 대응 (2026-09-03) -->
-    <m id="L-1.3"  hits="0" violations="0" last_fired="never" state="experimental"/>
-    <m id="L-1.5"  hits="0" violations="0" last_fired="never" state="experimental"/>
-    <m id="L-1.6"  hits="0" violations="0" last_fired="never" state="experimental"/>
-    <m id="HA6"    hits="0" violations="0" last_fired="never" state="active"/>
-    <!-- G5 Phase 3 privacy gate (dormant until Phase 2 완료) -->
-    <m id="L-3.1"  hits="0" violations="0" last_fired="never" state="dormant" note="Phase2 완료 후 experimental 전이"/>
     <m id="B1" hits="8" violations="0" last_fired="2026-09-08"/>
     <m id="B3" hits="4" violations="0" last_fired="2026-09-15"/>
     <m id="U6" hits="16" violations="0" last_fired="2026-09-28"/>
+    <m id="L1.6" hits="0" violations="0" last_fired="never" state="experimental" since="2026-09-29"/>
   </rule_metrics>
 
   <!-- ════════════════════════════════════════════════════════════

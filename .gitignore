@@ -24,6 +24,8 @@
 !/skills/
 /skills/*
 !/skills/delphi-cms/
+!/docs/
+!/tools/
 **/__pycache__/
 
 # 안전망: 비밀값/세션·메모리/세션 컨텐츠가 혹시라도 포함되지 않도록 명시 차단
