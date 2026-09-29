@@ -28,6 +28,9 @@ type
     procedure btn_RegClick(Sender: TObject);
   end;
   EMine = class(Exception);
+  TJ = class
+    class function Parse<T: record>(const S: string): T;
+  end;
   TProcRef = reference to procedure;
   TRec = record
     a: Integer;
@@ -123,7 +126,86 @@ begin
   {$ELSE}
   ElseBranchStmt;
   {$ENDIF}
+  if Assigned(s) then
+    R1 := 1
+  else
+  {$IFDEF WIDEX}
+    R2 := 2
+  {$ELSE}
+    ElseBranchOnly := 3
+  {$ENDIF};
+  case nChk of
+    7:
+      {$IFDEF NGX}
+      NgBody;
+      {$ELSE}
+      NonNgBody;
+      {$ENDIF}
+  end;
+  {$IFDEF PASSX}
+  if s = 'p' then
+  {$ENDIF}
+    MaybeBody;
+  {$IFDEF CPUX64}
+  X64Only;
+  {$ELSE}
+  X86Only;
+  {$ENDIF}
+  if s = 'e' then X := 1
+  else ElseLineStmt := 2;
+  if s = 't'
+  then ThenLineStmt := 1;
+  if s = 'q' then
+  begin
+    E1;
+  end else EndElseStmt := True;
+  try
+    if s = 'f' then
+      TryIfBody;
+  finally // FinAfterIf
+    FinBody;
+  end;
+  case nChk of
+    1: One;
+  else
+    CaseElse1;
+    CaseElse2;
+  end;
+  if s = 'd' then
+  begin
+    Exit;
+  end else AfterEndElse;
+  begin
+    Exit;
+  end; // LoneEndAfterExit
+  try
+    Exit;
+  finally // FinKw
+    FinKeywordBody;
+  end;
   Foo; { 꼬리 주석 }
+end;
+
+function AsmFunc: Integer;
+asm
+  MOV EAX, 1
+end;
+
+procedure AfterAsm;
+var
+  AfterAsmVar: Integer;
+begin
+  AfterAsmBody;
+end;
+
+procedure WithLabel;
+label Lbl;
+begin
+  goto Lbl;
+  Exit;
+  DeadBeforeLabel;
+Lbl:
+  AfterLabel;
 end;
 
 procedure Outer;
@@ -133,6 +215,31 @@ procedure Outer;
   end;
 begin
   OuterBody;
+end;
+
+end.
+"""
+
+PAS_UNBAL = r"""unit uUnbal;
+
+interface
+
+implementation
+
+procedure UnbalancedA;
+begin
+{$IFDEF DBGX}
+  if a then begin
+{$ELSE}
+  if b then begin
+{$ENDIF}
+    Xx;
+  end;
+end;
+
+procedure AfterUnbalanced;
+begin
+  AfterUnbalancedBody;
 end;
 
 end.
@@ -258,6 +365,35 @@ def main():
     check("다른 분기의 머리는 단문 머리로 쓰지 않음", single_x.startswith("아님"), True)
     # (l) reference to procedure / 타입 선언은 routine 으로 세지 않는다
     check("reference to procedure 는 routine 아님", all("TProcRef" not in n for n, _l in s.routines), True)
+
+    # ── 3차: 반증 시험 2차(wf_89eb42c8)에서 나온 결함 유형 ──
+    single_eb = nest("ElseBranchOnly")[1] or ""
+    check("else 분기 줄: else 머리, 연속줄 표시 없음", single_eb.startswith("else") and "연속줄" not in single_eb, True)
+    check("case 라벨 + 조건부 분기 → case 라벨 유지", (nest("NonNgBody")[1] or "").startswith("case 라벨"), True)
+    check("미상 분기의 머리 → [주의]", nest("MaybeBody")[2], True)
+    check("Win32: CPUX64 분기 확정 비활성", lab("X64Only"), "조건부 비활성")
+    check("Win32: X86Only 확정 활성(미상 아님)", s.classify(L("X86Only")), ("활성", ""))
+    check("else 로 시작하는 줄 → else 본문", (nest("ElseLineStmt")[1] or "").startswith("else"), True)
+    check("then 으로 시작하는 줄 → if 본문", (nest("ThenLineStmt")[1] or "").startswith("if"), True)
+    check("end else 문장 → else 본문", (nest("EndElseStmt")[1] or "").startswith("else"), True)
+    check("finally 줄은 앞 if 의 연속줄이 아님", nest("// FinAfterIf")[1], None)
+    check("case else 목록 두 번째 문장", (nest("CaseElse2")[1] or "").startswith("case else 목록"), True)
+    check("Exit 뒤 end else 문장은 활성", lab("AfterEndElse"), "활성")
+    check("Exit 뒤 단독 end; 는 도달불가 아님", lab("// LoneEndAfterExit"), "활성")
+    check("Exit 뒤 finally 키워드 줄 활성", lab("// FinKw"), "활성")
+    check("asm 본문 routine 뒤 선언부 누수 없음",
+          [d for _b, d in nest("AfterAsmVar")[0]], ["routine 선언부: AfterAsm (머리 %d행)" % L("procedure AfterAsm")])
+    check("goto 레이블 뒤 활성", lab("AfterLabel"), "활성")
+    check("goto 레이블 앞 Exit 뒤는 도달불가", lab("DeadBeforeLabel"), "도달불가 추정")
+    check("제네릭 <T: record> 는 record 블록 아님", any("record 선언" in d for _b, d in nest("AfterAsmBody")[0]), False)
+    ub = os.path.join(tempfile.mkdtemp(prefix="dlens_ub_"), "uUnbal.pas")  # callers 범위 시험과 섞이지 않게 별도 폴더
+    open(ub, "wb").write(PAS_UNBAL.replace("\n", "\r\n").encode("cp949"))
+    su = dlens.Src(ub)
+    Lu = lambda needle: line_no(PAS_UNBAL, needle)  # noqa: E731
+    check("분기별 begin 수 다름 → 불균형 경고", bool(su.nesting(Lu("AfterUnbalancedBody"))[3]), True)
+    check("end. 가 남은 블록을 삼키지 않음(끝 깊이>0)", su.final_depth > 0, True)
+    su_d = dlens.Src(ub, defines=["DBGX"])
+    check("분기를 정하면 균형·경고 없음", (su_d.final_depth, bool(su_d.nesting(Lu("AfterUnbalancedBody"))[3])), (0, False))
 
     # ── CLI 경유 ──
     py = sys.executable

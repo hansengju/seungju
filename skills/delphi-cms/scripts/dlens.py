@@ -34,8 +34,16 @@ SPECIAL = re.compile(r"//|\{|\(\*|'")
 TOKEN = re.compile(r"&?[A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?|:=|<>|<=|>=|\.\.|[;:=(),.\[\]^@+\-*/<>]|'")
 ROUTINE_KW = ("procedure", "function", "constructor", "destructor", "operator")
 EXIT_KW = ("exit", "raise", "abort", "halt", "break", "continue")
-STMT_BOUND = (";", "begin", "then", "do", "else", "try", "finally", "except", "repeat", "of", ":")
+STMT_BOUND = (";", "begin", "then", "do", "else", "try", "finally", "except", "repeat", "of", ":", "end")
+NOT_STMT_LEAD = ("begin", "try", "case", "repeat", "asm", "end", "finally", "except", "until")
 BUILTIN = ("UNICODE", "MSWINDOWS", "WIN32", "CPUX86", "CPU386", "VER340", "CONDITIONALEXPRESSIONS")
+# Delphi 10.4 Win32 에서 확실히 꺼진 컴파일러 심볼 (다른 플랫폼·다른 컴파일러 버전)
+BUILTIN_FALSE = tuple("CPUX64 CPU64BITS WIN64 LINUX LINUX64 POSIX POSIX64 MACOS MACOS32 MACOS64 IOS IOS32 IOS64 "
+                      "ANDROID ANDROID32 ANDROID64 NEXTGEN AUTOREFCOUNT WEAKREF UNIX FPC CPUARM CPUARM32 CPUARM64".split()) + \
+    tuple("VER%d" % v for v in (80, 90, 100, 120, 130, 140, 150, 160, 170, 180, 185, 190, 200, 210, 220, 230, 240,
+                                250, 260, 270, 280, 290, 300, 310, 320, 330, 350, 360, 370))
+BLOCK_OPEN = ("begin", "try", "case", "asm", "repeat")
+BLOCK_CLOSE = ("end", "until")
 HEADER_RE = re.compile(r"^\s*(?:class\s+)?(?:procedure|function|constructor|destructor|operator)\s+([A-Za-z_][\w.]*)", re.I)
 DFM_EVENT_RE = re.compile(r"^\s*(?:\w+\.)*On\w+\s*=\s*('?)[A-Za-z_]")
 
@@ -71,8 +79,10 @@ class Src:
         self.line_starts = [0] + [m.end() for m in re.finditer(r"\n", t)]
         self.lines = t.split("\n")
         self.true = {d.upper() for d in (tuple(BUILTIN) if builtin else ()) + tuple(defines)}
-        self.false = {d.upper() for d in undefs}
-        self.true -= self.false
+        self.false = {d.upper() for d in (tuple(BUILTIN_FALSE) if builtin else ()) + tuple(undefs)}
+        self.false -= {d.upper() for d in defines}   # 사용자가 켠 심볼은 기본 거짓 목록보다 우선
+        self.true -= {d.upper() for d in undefs}
+        self.label_names = set()
         self.underflow = 0
         self._lex()
         self._cond_events()
@@ -147,6 +157,7 @@ class Src:
 
     def _cond_events(self):
         stack, self.cond_pos, self.cond_snap = [], [], []
+        self.groups = {}  # 조건부 묶음 id → 정보 (분기별 begin/end 균형 검사용)
         for pos, end, body in self.directives:
             m = re.match(r"\s*([A-Za-z]+)\s*(.*)", body, re.S)
             if not m:
@@ -157,10 +168,13 @@ class Src:
                 v = self._sym(sym)
                 val = v if kw == "IFDEF" or v is None else not v
                 stack.append({"kw": kw, "arg": sym, "branch": "then", "val": val, "id": pos})
+                self.groups[pos] = {"desc": "{$%s %s}" % (kw, sym), "line": self.line_of(pos), "else": False}
             elif kw in ("IF", "IFOPT"):
                 stack.append({"kw": kw, "arg": arg[:40], "branch": "then", "val": None, "id": pos})
+                self.groups[pos] = {"desc": "{$%s %s}" % (kw, arg[:30]), "line": self.line_of(pos), "else": False}
             elif kw == "ELSE" and stack:
                 stack[-1] = dict(stack[-1], branch="else")
+                self.groups[stack[-1]["id"]]["else"] = True
             elif kw == "ELSEIF" and stack:
                 stack[-1] = dict(stack[-1], branch="elseif")
             elif kw in ("ENDIF", "IFEND") and stack:
@@ -170,9 +184,12 @@ class Src:
                 if ev == "on":
                     (self.true.add if kw == "DEFINE" else self.true.discard)(sym)
                     (self.false.discard if kw == "DEFINE" else self.false.add)(sym)
-                elif ev == "unknown":  # 켜질지 모르는 자리의 DEFINE → 그 심볼은 이제 모름
-                    self.true.discard(sym)
-                    self.false.discard(sym)
+                elif ev == "unknown":
+                    # 켜질지 모르는 자리: DEFINE 는 참을 참으로 둘 뿐이고, 거짓/모름이던 것은 '모름' 이 된다 (UNDEF 는 반대)
+                    if kw == "DEFINE" and sym not in self.true:
+                        self.false.discard(sym)
+                    elif kw == "UNDEF" and sym not in self.false:
+                        self.true.discard(sym)
                 continue
             else:
                 continue
@@ -206,7 +223,7 @@ class Src:
 
     # ── 블록 구조 (코드 영역 토큰만, 확실히 꺼진 조건부 분기는 뺀다) ──
     def _tokens(self):
-        st, toks = self.state, []
+        st, toks, net = self.state, [], {}
         for m in TOKEN.finditer(self.text):
             p = m.start()
             if st[p] == CODE:
@@ -216,9 +233,28 @@ class Src:
             else:
                 continue
             frames = self.cond_at(p)
-            if frames and self.eval_frames(frames) == "off":
-                continue
+            if frames:
+                ev = self.eval_frames(frames)
+                if ev == "off":
+                    continue
+                if ev == "unknown" and tk in BLOCK_OPEN + BLOCK_CLOSE:
+                    f = next((f for f in reversed(frames) if f["val"] is None or f["branch"] == "elseif"), None)
+                    if f:
+                        key = (f["id"], f["branch"])
+                        net[key] = net.get(key, 0) + (1 if tk in BLOCK_OPEN else -1)
             toks.append((tk, p))
+        # 값을 모르는 조건부 묶음은 양쪽 분기 토큰을 합쳐 계산한다. 합친 begin/end 순변화가
+        # 실제로 컴파일될 어느 한 분기의 순변화와 다르면 → 그 뒤 구조는 틀릴 수 있다
+        by_id = {}
+        for (gid, br), n in net.items():
+            by_id.setdefault(gid, {})[br] = n
+        self.unreliable = []
+        for gid, d in sorted(by_id.items()):
+            g = self.groups.get(gid, {"desc": "?", "line": self.line_of(gid), "else": False})
+            merged = sum(d.values())
+            actual = {d.get(b, 0) for b in ("then", "else")} | set(d.values())  # 분기가 없거나 꺼진 쪽은 0
+            if any(a != merged for a in actual):
+                self.unreliable.append((g["line"], g["desc"]))
         return toks
 
     def _structure(self):
@@ -258,6 +294,20 @@ class Src:
                 stack[-1]["exit"], stack[-1]["exit_pending"] = ln, False
             if tk in ("finally", "except") and stack and stack[-1]["kind"] == "try":
                 stack[-1]["exit"], stack[-1]["exit_pending"] = None, False  # 예외·정리 절은 도달한다
+            # goto 레이블 문장은 goto 로 도달할 수 있다 → 그 블록의 도달불가 표시를 푼다
+            if (stmt_start and paren == 0 and tk in self.label_names and stack
+                    and idx + 1 < len(toks) and toks[idx + 1][0] == ":"):
+                stack[-1]["exit"], stack[-1]["exit_pending"] = None, False
+            # case 의 else 목록 (else 앞이 ';' 이면 if..else 가 아니라 case..else)
+            if tk == "else" and prev == ";" and stack and stack[-1]["kind"] == "case":
+                stack[-1]["case_else"] = ln
+
+            if tk == "label" and prev in (";", "begin", None) and paren == 0:
+                j = idx + 1
+                while j < len(toks) and toks[j][0] != ";":
+                    if toks[j][0] != ",":
+                        self.label_names.add(toks[j][0])
+                    j += 1
 
             if tk in ROUTINE_KW and prev not in ("=", "of", ":", "(", ",", ":=", "to"):
                 inside_type = any(b["kind"] in ("class", "record", "interface") for b in stack)
@@ -274,6 +324,9 @@ class Src:
                 else:
                     hl, what, j = self._header_of(idx)
                     stack.append(self._blk("begin", ln, hl, what, j))
+            elif tk == "asm" and pending and len(stack) == pending[-1][2]:
+                name, hl, _d = pending.pop()  # asm 본문 routine — begin 대신 asm..end
+                stack.append(self._blk("asm", ln, hl, "routine", None, name))
             elif tk in ("try", "asm", "repeat"):
                 hl, what, j = self._header_of(idx)
                 stack.append(self._blk(tk, ln, hl, what, j))
@@ -282,14 +335,20 @@ class Src:
                     hl, what, j = self._header_of(idx)
                     stack.append(self._blk("case", ln, hl, what, j))
             elif tk == "record":
-                stack.append(self._blk("record", ln, ln, "record"))
+                nxt = toks[idx + 1][0] if idx + 1 < len(toks) else None
+                if nxt not in (">", ","):  # 제네릭 제약 <T: record> 은 블록이 아니다
+                    stack.append(self._blk("record", ln, ln, "record"))
             elif tk in ("class", "object", "interface", "dispinterface") and prev in ("=", "packed"):
                 if not self._is_forward_type(idx):
                     stack.append(self._blk("interface" if tk == "interface" else "class", ln, ln, tk))
             elif tk == "end":
-                if stack:
+                if idx + 1 < len(toks) and toks[idx + 1][0] == ".":
+                    # 'end.' 은 프로그램/유닛 초기화 begin 하나만 닫는다. 남은 블록을 삼키면 불균형이 숨는다
+                    if len(stack) == 1 and stack[0]["kind"] == "begin" and stack[0]["what"] != "routine":
+                        stack.pop()
+                elif stack:
                     stack.pop()
-                elif not (idx + 1 < len(toks) and toks[idx + 1][0] == "."):  # 유닛 끝 'end.' 은 짝 없음이 정상
+                else:
                     self.underflow += 1
             elif tk == "until" and stack and stack[-1]["kind"] == "repeat":
                 stack.pop()
@@ -330,13 +389,21 @@ class Src:
             return j + 1 < len(self.toks) and self.toks[j + 1][0] == ";"
         return False
 
-    def _header_of(self, idx):
+    def _prev(self, idx, here):
+        """idx 바로 앞 토큰 위치. here 가 주어지면 here 와 배타인 조건부 분기의 토큰은 건너뛴다."""
+        j = idx - 1
+        while j >= 0 and here is not None and self.exclusive(here, self.toks[j][1]):
+            j -= 1
+        return j
+
+    def _header_of(self, idx, here=None):
         """토큰 idx 로 시작하는 문장/블록의 머리. (머리 줄, 종류, 머리 토큰 위치)."""
-        if idx == 0:
-            return self.line_of(self.toks[0][1]), "block", 0
-        pt = self.toks[idx - 1][0]
+        pi = self._prev(idx, here)
+        if pi < 0:
+            return self.line_of(self.toks[max(idx, 0)][1]), "block", idx
+        pt = self.toks[pi][0]
         if pt in ("then", "do"):
-            j, paren = idx - 2, 0
+            j, paren = self._prev(pi, here), 0
             while j >= 0:
                 tk = self.toks[j][0]
                 if tk == ")":
@@ -347,26 +414,29 @@ class Src:
                     break
                 elif paren == 0 and tk in ("if", "for", "while", "with", "on"):
                     return self.line_of(self.toks[j][1]), tk, j
-                j -= 1
-            return self.line_of(self.toks[idx - 1][1]), pt, idx - 1
+                j = self._prev(j, here)
+            return self.line_of(self.toks[pi][1]), pt, pi
         if pt == "else":
-            return self.line_of(self.toks[idx - 1][1]), "else", idx - 1
+            return self.line_of(self.toks[pi][1]), "else", pi
         if pt == ":":
-            return self.line_of(self.toks[idx - 1][1]), "case-label", idx - 1
+            return self.line_of(self.toks[pi][1]), "case-label", pi
         return self.line_of(self.toks[idx][1]), "block", idx
 
-    def _outer_single_heads(self, j):
+    def _outer_single_heads(self, j, here=None):
         """머리 토큰 j 가 다시 then/do/else 에 딸린 단문이면, 바깥 머리들을 (바깥→안) 모은다."""
         out, guard = [], 0
-        while j and j > 0 and guard < 30:
+        while j is not None and j > 0 and guard < 30:
             guard += 1
-            pt = self.toks[j - 1][0]
+            pi = self._prev(j, here)
+            pt = self.toks[pi][0] if pi >= 0 else None
             if pt in ("then", "do"):
-                hl, what, j2 = self._header_of(j)
+                hl, what, j2 = self._header_of(j, here)
                 out.append((hl, "단문 머리 %s %d행: %s" % (what, hl, self.lines[hl - 1].strip()[:100])))
+                if j2 == pi:
+                    break
                 j = j2
             elif pt == "else":
-                hl = self.line_of(self.toks[j - 1][1])
+                hl = self.line_of(self.toks[pi][1])
                 out.append((hl, "단문 머리 else %d행" % hl))
                 break
             else:
@@ -374,10 +444,17 @@ class Src:
         return list(reversed(out))
 
     def _stmt_start(self, i):
-        """토큰 i 가 속한 문장의 시작 토큰 위치 (여러 줄 문장·괄호 안 연속줄 대응)."""
-        k, paren = i, 0
-        while k > 0:
-            t = self.toks[k - 1][0]
+        """토큰 i 가 속한 문장의 (시작 토큰 위치, 그 앞 경계 토큰 위치 또는 -1).
+        여러 줄 문장·괄호 안 연속줄을 거슬러 올라가되, 같은 조건부 묶음의 다른 분기 토큰은
+        함께 컴파일되지 않으므로 건너뛴다(문장에 넣지도, 경계로 쓰지도 않는다)."""
+        here, start, paren, skipped = self.toks[i][1], i, 0, None
+        j = i - 1
+        while j >= 0:
+            if self.exclusive(here, self.toks[j][1]):
+                skipped = skipped or self.line_of(self.toks[j][1])
+                j -= 1
+                continue
+            t = self.toks[j][0]
             if t == ")":
                 paren += 1
             elif t == "(":
@@ -385,8 +462,9 @@ class Src:
                     paren -= 1
             elif paren == 0 and t in STMT_BOUND:
                 break
-            k -= 1
-        return k
+            start = j
+            j -= 1
+        return start, j, skipped
 
     # ── 판정 ──
     def first_code_pos(self, line):
@@ -430,7 +508,7 @@ class Src:
                 return "조건부 비활성", desc
             if ev == "unknown":
                 extra.append("조건부 " + desc + " (심볼 값 미상 — --define/--undef)")
-        dead = [b for b in (self.snap[line] or []) if b.get("exit") and b["exit"] < line]
+        dead = [b for b in self._blocks_after_lead(line) if b.get("exit") and b["exit"] < line]
         if dead:
             return "도달불가 추정", "%d행 Exit/raise/Break 문장 뒤 (%d행에서 시작한 블록)" % (dead[-1]["exit"], dead[-1]["line"])
         hm = HEADER_RE.match(txt)
@@ -441,6 +519,34 @@ class Src:
         if rest & {LCOM, BCOM, PCOM}:
             extra.append("줄 일부 주석")
         return "활성", " · ".join(extra)
+
+    def _lead_tokens(self, line):
+        """줄 첫 토큰부터, 앞 블록을 닫는 end/until/';' 를 건너뛴 위치와 닫힌 블록 수."""
+        i = self.first_tok[line]
+        if i is None:
+            return None, 0
+        j, closed = i, 0
+        while (j < len(self.toks) and self.line_of(self.toks[j][1]) == line
+               and self.toks[j][0] in ("end", "until", ";")):
+            closed += self.toks[j][0] != ";"
+            j += 1
+        if j >= len(self.toks) or self.line_of(self.toks[j][1]) != line:
+            return None, closed
+        return j, closed
+
+    def _blocks_after_lead(self, line):
+        """줄 앞의 end(블록 닫힘)·finally/except(도달 복귀)·goto 레이블을 반영한 감싼 블록 목록."""
+        blocks = [dict(b) for b in (self.snap[line] or [])]
+        j, closed = self._lead_tokens(line)
+        for _ in range(closed):
+            if blocks:
+                blocks.pop()
+        if j is not None and blocks:
+            tk = self.toks[j][0]
+            nxt = self.toks[j + 1][0] if j + 1 < len(self.toks) else None
+            if (tk in ("finally", "except") and blocks[-1]["kind"] == "try") or                     (tk in self.label_names and nxt == ":"):
+                blocks[-1]["exit"] = None
+        return blocks
 
     def nesting(self, line):
         entries = []
@@ -462,31 +568,53 @@ class Src:
                 mixed |= self.unknown_at(self.toks[b["hdr_idx"]][1])
         entries.sort(key=lambda e: e[0])
 
-        single = None
-        i = self.first_tok[line]
-        if i is not None and self.toks[i][0] not in ("begin", "try", "case", "repeat", "asm", "end"):
-            k = self._stmt_start(i)
-            pt = self.toks[k - 1][0] if k > 0 else None
-            heads = []
-            if pt in ("then", "do"):
-                hl, what, j = self._header_of(k)
-                heads = self._outer_single_heads(j) + [(hl, "%s %d행: %s" % (what, hl, self.lines[hl - 1].strip()[:100]))]
-            elif pt == "else":
-                hl = self.line_of(self.toks[k - 1][1])
-                heads = [(hl, "else %d행" % hl)]
-            elif pt == ":" and (self.snap[line] or []) and self.snap[line][-1]["kind"] == "case":
-                hl = self.line_of(self.toks[k - 1][1])
-                heads = [(hl, "case 라벨 %d행: %s" % (hl, self.lines[hl - 1].strip()[:100]))]
-            if heads and pt in ("then", "do", "else", ":") and self.exclusive(self.toks[k][1], self.toks[k - 1][1]):
-                # 이 문장과 바로 앞 머리가 같은 {$IF..} 의 다른 분기 → 어느 빌드에서도 함께 컴파일되지 않는다
-                heads, single = [], "아님 (앞 머리 %d행은 다른 조건부 분기라 함께 컴파일되지 않음)" % self.line_of(self.toks[k - 1][1])
-            if heads:
-                single = " → ".join(h[1] for h in heads)
-                if self.line_of(self.toks[k][1]) != line:
-                    single += "  (이 줄은 %d행에서 시작한 문장의 연속줄)" % self.line_of(self.toks[k][1])
+        single, heads, cont_from = None, [], None
+        j, closed = self._lead_tokens(line)
+        blocks = self._blocks_after_lead(line)
+        in_case = bool(blocks) and blocks[-1]["kind"] == "case"
+        desc = lambda hl, what: "%s %d행: %s" % (what, hl, self.lines[hl - 1].strip()[:100])  # noqa: E731
+        if j is not None:
+            here, tk0 = self.toks[j][1], self.toks[j][0]
+            if tk0 == "else":
+                pi = self._prev(j, here)
+                case_else = in_case and pi >= 0 and self.toks[pi][0] == ";"
+                heads = [(line, ("case else 목록 %d행" if case_else else "else %d행") % line)]
+            elif tk0 in ("then", "do") and j + 1 < len(self.toks):
+                hl, what, hj = self._header_of(j + 1, here)
+                heads = self._outer_single_heads(hj, here) + [(hl, desc(hl, what))]
+                mixed |= self.unknown_at(self.toks[hj][1])
+            elif tk0 not in NOT_STMT_LEAD:
+                k, pidx, skipped = self._stmt_start(j)
+                pt = self.toks[pidx][0] if pidx >= 0 else None
+                if pt in ("then", "do"):
+                    hl, what, hj = self._header_of(k, here)
+                    heads = self._outer_single_heads(hj, here) + [(hl, desc(hl, what))]
+                    mixed |= self.unknown_at(self.toks[hj][1])
+                elif pt == "else":
+                    hl = self.line_of(self.toks[pidx][1])
+                    pi = self._prev(pidx, here)
+                    case_else = in_case and pi >= 0 and self.toks[pi][0] == ";"
+                    heads = [(hl, ("case else 목록 %d행" if case_else else "else %d행") % hl)]
+                elif pt == ":" and in_case:
+                    hl = self.line_of(self.toks[pidx][1])
+                    heads = [(hl, desc(hl, "case 라벨"))]
+                elif in_case and blocks[-1].get("case_else") and blocks[-1]["case_else"] <= line:
+                    hl = blocks[-1]["case_else"]
+                    heads = [(hl, "case else 목록 %d행" % hl)]
+                if pidx >= 0:
+                    mixed |= self.unknown_at(self.toks[pidx][1])
+                if heads and self.line_of(self.toks[k][1]) != line:
+                    cont_from = self.line_of(self.toks[k][1])
+                if not heads and skipped:
+                    single = "아님 (%d행 쪽 다른 조건부 분기는 함께 컴파일되지 않아 건너뜀)" % skipped
+        if heads:
+            single = " → ".join(h[1] for h in heads)
+            if cont_from:
+                single += "  (이 줄은 %d행에서 시작한 문장의 연속줄)" % cont_from
         pos = self.first_code_pos(line)
         mixed |= bool(pos is not None and self.unknown_at(pos))
-        return entries, single, mixed
+        warn = [u for u in self.unreliable if u[0] < line]
+        return entries, single, mixed, warn
 
 
 # ───────────────────────── 명령 ─────────────────────────
@@ -543,7 +671,7 @@ def cmd_nest(a):
         return
     lab, det = s.classify(ln)
     print("%d  %s  %s" % (ln, label_str(lab, det), s.lines[ln - 1].strip()[:100]))
-    entries, single, mixed = s.nesting(ln)
+    entries, single, mixed, warn = s.nesting(ln)
     print("감싼 구조 (바깥 → 안):")
     if not entries:
         print("  (없음 — 최상위)")
@@ -552,6 +680,9 @@ def cmd_nest(a):
     print("단문 본문(begin 없이 딸린 문장): %s" % (single or "아님"))
     if mixed:
         print("[주의] 값을 모르는 조건부 분기 안/근처 — 구조는 양쪽 분기 토큰을 합쳐 계산했다. --define/--undef 로 분기를 정하면 정확해진다")
+    if warn:
+        print("[주의] 값을 모르는 조건부 분기마다 begin/end 수가 다르다 — 이 줄 앞 %s. 이 뒤 구조는 틀릴 수 있으니 --define/--undef 로 분기를 정하라"
+              % ", ".join("%d행 %s" % u for u in warn[:3]) + (" 외 %d곳" % (len(warn) - 3) if len(warn) > 3 else ""))
     if s.underflow or s.final_depth:
         print("[주의] 블록 균형 불일치(underflow=%d, 파일 끝 남은 깊이=%d) — 구조 판정 신뢰도 낮음"
               % (s.underflow, s.final_depth))
