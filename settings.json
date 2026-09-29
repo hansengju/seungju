@@ -90,6 +90,14 @@
                             "C:\\Users\\hanse\\.claude\\hooks\\observe.py"
                         ],
                         "async": true
+                    },
+                    {
+                        "type": "command",
+                        "command": "python",
+                        "args": [
+                            "C:\\Users\\hanse/.claude/hooks\\claim_gate.py"
+                        ],
+                        "async": true
                     }
                 ]
             }
