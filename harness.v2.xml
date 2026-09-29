@@ -976,6 +976,36 @@
           다시 잰다.</violation>
       </rule>
     </p>
+
+    <p id="I-2026-09-29-1" raised="2026-09-29" trigger="user_correction"
+       evidence="session 73c9838f (압축 전 구간 jsonl 4073·4117·4120 + 압축 후 Delphi 8건)" trial="incident">
+      <incident>
+        [WHAT] 증거보다 강한 결론 11건을 사용자가 지적했다.
+          Delphi CMS 8건 — (1) { } 블록주석 안 showmessage 를 활성 디버그 코드로 보고
+          (2) 서브에이전트의 "ValidityCheck 항상 True = 취약점" 을 확인 없이 전달(실제는 ERP_ERROR 플래그 설계)
+          (3) 함수 안 grep 0건을 "송금실행 재검증 없음 = 방어선 1겹" 으로 승격(등록 차단→파일→실행 체인 미추적)
+          (4) 형제 파일(당발) 결론 "요건 A 불가" 를 대량송금에 옮김
+          (5) if BIC='' 분기 안에 들어간 제재국가 패치를 정상 위치로 보고
+          (6) 빌드 F2613 원인을 로그 전문 없이 연속 오판(실제는 dcc32 -LU 목록 누락)
+          (7) object 만 찾는 정규식으로 DFM inline 선언을 "없다" 고 보고
+          (8) 팝업이 등록 완료건(tv_RegSongGeumList)만 받는다는 것을 확인 없이 "팝업에서 오류 수정 가능" 이라 보고.
+          MCP 3건 — (9) OmniRoute 12초 대기 후 "응답 없음"(14.5초에 응답) (10) context7 첫 실행 npx
+          내려받기를 "초기화 29.8초" 로 일반화(재측정 2.4초) (11) 측정 없이 스코프 환경변수가 도구 수를
+          줄인다고 가정(재측정 110개 그대로).
+          같은 세션에서 요청 없이 멀티에이전트 워크플로를 띄우고, 켜지지 않은 모드명을 응답 머리에 적었다.
+        [WHY] 공통 뿌리는 증거 범위와 주장 강도의 불일치다. grep 1회를 "전수", 함수 내부를 "경로 전체",
+          에이전트 문장을 "확정" 으로 표기했다. L1.5(a)는 { } 를 명시하고 매 세션 로드됐지만(195행)
+          강제 장치가 없었다. L0.3 자기점검은 이 세션 응답에서 80회 언급됐지만 11건 중 1건도 사전에 잡지
+          못했다(응답별 1:1 대조는 못 해 L0.3 violations 는 미반영).
+        [VIOLATED] I1(12건), L1.2(#2 #3 #4 #6 #7 #8 #9), L1.5(#1), L4.6(#5), L4.4(#11).
+        [LESSON] 규칙 문구를 늘리지 않는다. 기계로 판정할 수 있는 것(주석·조건부컴파일·DFM 선언 3종·
+          인코딩·에이전트 출처)은 훅과 도구로 옮긴다. 해석 오류(#2 의 해석, #8)는 결론을 가설로 표기하고
+          반증 목적의 독립 검증에 맡긴다.
+        [RESOLUTION] 구조 개편(사용자 승인 2026-09-29, 0~2단계 우선): 롤백 태그 pre-restructure-20260929,
+          관찰 전용 훅, delphi-cms 스킬 + 판정 도구. P-2026-09-19-1(L1.6/L1.7/L3.4)과 같은 패턴이므로
+          AL4 누적 대상이며, 3단계 이후 이 셋을 합쳐 승격하는 안을 사용자 승인에 올린다.
+      </incident>
+    </p>
   </proposals>
 
   <!-- ════════════════════════════════════════════════════════════
@@ -992,14 +1022,14 @@
        L7.5에 의해 작업 종료 시 갱신.
        last_fired 형식: "never" | "YYYY-MM-DD"
        ════════════════════════════════════════════════════════════ -->
-  <rule_metrics last_updated="2026-09-28">
+  <rule_metrics last_updated="2026-09-29">
     <m id="L0.1" hits="126"  violations="2" last_fired="2026-09-28"/>
     <m id="L0.2" hits="6"  violations="0" last_fired="2026-09-22"/>
     <m id="L0.3" hits="117" violations="0" last_fired="2026-09-28"/>
     <m id="L1.1" hits="10"  violations="0" last_fired="2026-09-24"/>
-    <m id="L1.2" hits="230" violations="1" last_fired="2026-09-28"/>
+    <m id="L1.2" hits="230" violations="8" last_fired="2026-09-29"/>
     <m id="L1.3" hits="58"  violations="0" last_fired="2026-09-27"/>
-    <m id="L1.5" hits="29"  violations="2" last_fired="2026-09-28"/>
+    <m id="L1.5" hits="29"  violations="3" last_fired="2026-09-29"/>
     <m id="L2.1" hits="67"  violations="0" last_fired="2026-09-24"/>
     <m id="L2.2" hits="35"  violations="0" last_fired="2026-09-22"/>
     <m id="L2.3" hits="55"  violations="1" last_fired="2026-09-28"/>
@@ -1009,7 +1039,7 @@
     <m id="L4.1" hits="122" violations="1" last_fired="2026-09-28"/>
     <m id="L4.2" hits="33" violations="0" last_fired="2026-09-28"/>
     <m id="L4.3" hits="16" violations="0" last_fired="2026-09-19"/>
-    <m id="L4.4" hits="78" violations="2" last_fired="2026-09-28"/>
+    <m id="L4.4" hits="78" violations="3" last_fired="2026-09-29"/>
     <m id="L6.1" hits="86" violations="3" last_fired="2026-09-28"/>
     <m id="L6.2" hits="73" violations="2" last_fired="2026-09-28"/>
     <m id="L6.3" hits="0"  violations="0" last_fired="never"/>
@@ -1027,7 +1057,7 @@
     <m id="V6"   hits="0" violations="0" last_fired="never"/>
     <m id="V7"   hits="11" violations="0" last_fired="2026-09-28"/>
     <m id="V8"   hits="30"  violations="1" last_fired="2026-09-28"/>
-    <m id="I1"   hits="229" violations="16" last_fired="2026-09-28"/>
+    <m id="I1"   hits="229" violations="28" last_fired="2026-09-29"/>
     <m id="I2"   hits="28"  violations="0" last_fired="2026-09-28"/>
     <m id="I3"   hits="161" violations="5" last_fired="2026-09-28"/>
     <m id="I4"   hits="19" violations="0" last_fired="2026-09-20"/>
@@ -1081,7 +1111,7 @@
     <m id="L1.4" hits="0" violations="0" last_fired="never"/>
     <m id="L2.4" hits="6" violations="0" last_fired="2026-09-28"/>
     <m id="L4.5" hits="37" violations="0" last_fired="2026-09-28"/>
-    <m id="L4.6" hits="126" violations="5" last_fired="2026-09-28"/>
+    <m id="L4.6" hits="126" violations="6" last_fired="2026-09-29"/>
     <!-- Phase 1 Tier 시스템 신규 메트릭 (2026-09-03, rollback_anchor=0b320f0) -->
     <m id="T0"     hits="0" violations="0" last_fired="never" state="experimental"/>
     <m id="T1"     hits="0" violations="0" last_fired="never" state="experimental"/>
