@@ -417,3 +417,6 @@ L7.3은 **다음 3개 트리거** 시에만 동작:
 | `~/.claude/` git 저장소 초기화 | ✅ 완료 |
 | GitHub remote push | ⏸ **사용자 승인 대기** (private 여부 확인 필요) |
 | 다중 PC 동기화 | ⏸ remote 후 자동 가능 |
+# graphify
+- **graphify** (`~/.claude/skills/graphify/SKILL.md`) - any input to knowledge graph. Trigger: `/graphify`
+When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
