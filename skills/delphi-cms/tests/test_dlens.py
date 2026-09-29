@@ -226,15 +226,23 @@ interface
 
 implementation
 
-procedure UnbalancedA;
+procedure SymmetricA;
 begin
-{$IFDEF DBGX}
+{$IFDEF SYMX}
   if a then begin
 {$ELSE}
   if b then begin
 {$ENDIF}
-    Xx;
+    Ss;
   end;
+end;
+
+procedure UnbalancedA;
+begin
+{$IFDEF DBGX}
+  if a then begin
+{$ENDIF}
+    Xx;
 end;
 
 procedure AfterUnbalanced;
@@ -243,6 +251,87 @@ begin
 end;
 
 end.
+"""
+
+PAS_R3 = r"""unit uR3;
+
+interface
+
+{$IFDEF CMSX}
+type
+  TLib = class(TBaseA)
+{$ELSE}
+type
+  TLib = class(TBaseB)
+{$ENDIF}
+    procedure Send;
+  end;
+  TFoo2 = class(TForm)
+    lbl_입금은행: TcxLabel;
+    lbl_입금은행코드: TcxLabel;
+  end;
+{$IFDEF RECX}
+  TRecX = record
+    a: Integer;
+  end;
+{$ENDIF}
+
+procedure ScreenEnd;
+
+implementation
+
+procedure ScreenEnd;
+begin
+  lbl_입금은행.Caption := 'x';
+  lbl_입금은행코드.Caption := 'y';
+  oData.Data['Handled'].AsBoolean := Handled;
+end;
+
+procedure TLib.Send;
+label
+  Redo;
+var
+  n: Integer;
+begin
+  SendBody;
+Redo:
+  case n of
+    1:
+      begin
+        One;
+      end
+  else
+    CaseElseA;
+    CaseElseB;
+  end;
+{$IF CompilerVersion >= 34.0}
+  NewCompilerOnly;
+{$ELSE}
+  OldCompilerOnly;
+{$IFEND}
+end;
+
+end.
+
+procedure AfterUnitEnd;
+begin
+  NeverCompiled;
+end;
+"""
+
+DFM_R3 = """object frmR3: TfrmR3
+  object mTbl: TFDMemTable
+    BeforePost = mTblBeforePost
+  end
+  object pnl: TPanel
+    Caption = 'FrameSearchSummary'
+    object TPage
+      object Panel4: TPanel
+        Left = 0
+      end
+    end
+  end
+end
 """
 
 DFM = """object frmFoo: TfrmFoo
@@ -284,6 +373,10 @@ def main():
     nest = lambda needle, src=s: src.nesting(L(needle))  # noqa: E731
 
     cases = []
+    py = sys.executable
+    tool = os.path.join(HERE, "..", "scripts", "dlens.py")
+    env = dict(os.environ, PYTHONIOENCODING="utf-8")
+    run = lambda *args: subprocess.run([py, tool] + list(args), capture_output=True, env=env).stdout.decode("utf-8")  # noqa: E731
 
     def check(name, got, want):
         cases.append((name, got == want, got, want))
@@ -390,16 +483,57 @@ def main():
     open(ub, "wb").write(PAS_UNBAL.replace("\n", "\r\n").encode("cp949"))
     su = dlens.Src(ub)
     Lu = lambda needle: line_no(PAS_UNBAL, needle)  # noqa: E731
-    check("분기별 begin 수 다름 → 불균형 경고", bool(su.nesting(Lu("AfterUnbalancedBody"))[3]), True)
-    check("end. 가 남은 블록을 삼키지 않음(끝 깊이>0)", su.final_depth > 0, True)
-    su_d = dlens.Src(ub, defines=["DBGX"])
+    warn_lines = [w[0] for w in su.nesting(Lu("AfterUnbalancedBody"))[3]]
+    check("대칭 분기(두 분기 모두 begin 1개)는 경고 없음", Lu("{$IFDEF SYMX}") in warn_lines, False)
+    check("설정에 따라 begin 수가 다른 분기 → 경고", Lu("{$IFDEF DBGX}") in warn_lines, True)
+    check("end. 가 남은 블록을 삼키지 않음(첫 분기 설정 끝 깊이>0)", su.final_depth > 0, True)
+    su_d = dlens.Src(ub, undefs=["DBGX", "SYMX"])
     check("분기를 정하면 균형·경고 없음", (su_d.final_depth, bool(su_d.nesting(Lu("AfterUnbalancedBody"))[3])), (0, False))
 
+    # ── 4차: 반증 시험 3차(wf_d2fa4a27)에서 나온 결함 유형 ──
+    r3dir = tempfile.mkdtemp(prefix="dlens_r3_")
+    r3 = os.path.join(r3dir, "uR3.pas")
+    open(r3, "wb").write(PAS_R3.replace("\n", "\r\n").encode("cp949"))
+    r3dfm = os.path.join(r3dir, "uR3.dfm")
+    open(r3dfm, "wb").write(DFM_R3.replace("\n", "\r\n").encode("cp949"))
+    bdfm = os.path.join(r3dir, "uBin.dfm")
+    open(bdfm, "wb").write(b"TPF0\x06TfrmBin\x05frmBin\x04Left\x02\x00\x0bOnClick\x07\x0cFrameSearchSummary\x00\x00")
+    s3 = dlens.Src(r3)
+    L3 = lambda needle: line_no(PAS_R3, needle)  # noqa: E731
+    check("두 분기가 각자 class 를 열어도 블록 균형 유지", (s3.underflow, s3.final_depth), (0, 0))
+    check("값 미상 분기 안 class 는 routine 구조에 새지 않음",
+          any("class 선언" in d for _b, d in s3.nesting(L3("SendBody"))[0]), False)
+    check("분기 안 record 선언은 불균형 경고 아님", any(u[0] == L3("{$IFDEF RECX}") for u in s3.unreliable), False)
+    check("{$IF CompilerVersion >= 34.0} → 10.4 에서 확정 활성", s3.classify(L3("NewCompilerOnly")), ("활성", ""))
+    check("{$IF} 의 ELSE 쪽 → 조건부 비활성", s3.classify(L3("OldCompilerOnly"))[0], "조건부 비활성")
+    check("유닛 끝 end. 뒤 코드는 컴파일 안 됨", s3.classify(L3("NeverCompiled"))[0], "컴파일 안 됨")
+    check("goto 레이블 뒤 case 는 case 라벨 본문이 아님",
+          any("case ← block" in d for _b, d in s3.nesting(L3("One;"))[0]), True)
+    check("case 라벨 begin..end 뒤 else 목록 2번째 문장", (s3.nesting(L3("CaseElseB"))[1] or "").startswith("case else 목록"), True)
+    out_c = run("callers", "lbl_입금은행", r3dir)
+    check("한글 식별자 경계: lbl_입금은행코드 는 섞이지 않음", "lbl_입금은행코드" in out_c, False)
+    check("한글 식별자 경계: lbl_입금은행 은 찾음", "lbl_입금은행.Caption" in out_c, True)
+    out_a = run("grep", r"^procedure ScreenEnd", r3dir)
+    check("grep ^ 앵커 — 줄 머리 매치를 찾음(0건 아님)", out_a.count("procedure ScreenEnd") >= 2, True)
+    out_d = run("grep", r"ScreenEnd;$", r3dir)
+    check("grep $ 앵커 — CRLF 줄 끝 매치를 찾음", out_d.count("ScreenEnd;") >= 2, True)
+    check("grep 'procedure ScreenEnd' → 정의/선언(이름과 겹침)", "[활성 · 정의/선언]" in run("grep", "procedure ScreenEnd", r3), True)
+    out_h = run("callers", "Handled", r3)
+    check("같은 줄 문자열+코드 매치 → 코드 기준 활성", "[활성 · 같은 줄 다른 매치는 문자열 리터럴]" in out_h, True)
+    out_t = run("callers", "TFoo2", r3)
+    check("타입 선언 줄 → 정의/선언(타입)", "정의/선언(타입)" in out_t, True)
+    out_m = run("callers", "TLib", r3)
+    check("TLib.Send 머리의 TLib → 클래스 한정자(정의 아님)", "메서드 구현 머리의 클래스 한정자" in out_m, True)
+    out_bp = run("callers", "mTblBeforePost", r3dir)
+    check("DFM BeforePost = X → 이벤트 배선", "[DFM 이벤트 배선]" in out_bp, True)
+    out_fs = run("callers", "FrameSearchSummary", r3dir)
+    check("DFM Caption = 'X' → 문자열 값", "[DFM 문자열 값]" in out_fs, True)
+    check("바이너리 DFM → 판정불가", "바이너리 DFM" in out_fs, True)
+    check("dfm: 이름 없는 object TPage 는 이름 검색에 안 걸림", "(0건" in run("dfm", r3dfm, "TPage"), True)
+    check("dfm: 부모 경로에 (이름 없음: TPage)", "(이름 없음: TPage)" in run("dfm", r3dfm, "Panel4"), True)
+    check("live 에 DFM → 거절", "[판정불가] DFM 은 live/nest 대상이 아니다" in run("live", r3dfm, "3"), True)
+
     # ── CLI 경유 ──
-    py = sys.executable
-    tool = os.path.join(HERE, "..", "scripts", "dlens.py")
-    env = dict(os.environ, PYTHONIOENCODING="utf-8")
-    run = lambda *args: subprocess.run([py, tool] + list(args), capture_output=True, env=env).stdout.decode("utf-8")  # noqa: E731
     out = run("dfm", dfm, "frame_CNTY_CD")
     check("DFM inline frame_CNTY_CD 발견", "inline frame_CNTY_CD: TFrameEdit" in out, True)
     out2 = run("dfm", dfm, "Edt")
