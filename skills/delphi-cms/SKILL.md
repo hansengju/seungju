@@ -61,7 +61,8 @@ python "${CLAUDE_SKILL_DIR}/scripts/dlens.py" <명령> ...
 ## 이 코드베이스의 구조 (자세히는 references/)
 
 - 검증 함수(`ValidityCheck_FEXCEL_MT/MX` 등)는 중첩 프로시저 `SetError` 로 행에 `ERP_ERROR='Y'` 와
-  `ERP_ERROR_MSG` 를 쌓는다. **그 자리에서 막지 않는다.** 차단은 `btn_RegClick` 의 오류 행 검사가 한다.
+  `ERP_ERROR_MSG` 를 쌓는다. **그 자리에서 막지 않는다.** 차단은 `btn_RegClick` 의 오류 행 검사가 한다
+  (등록 시점 재검증은 없어서 표시가 지워지면 통과한다 — 대량 자동 버튼 경로, pitfalls.md #10).
 - 팝업은 `iiCom.iMsg.MsgWarning(...)` 후 `Exit;` 로 막는다(행 표시 방식이 아님).
 - 수정 팝업 `EXC0102020_01` 은 두 화면이 함께 쓰고, **등록된 목록(`tv_RegSongGeumList`)** 을 받는다.
 - 화면별 사실: `references/screens/*.md` · 공통 패턴: `references/patterns.md` · 경로: `references/k-map.md`
