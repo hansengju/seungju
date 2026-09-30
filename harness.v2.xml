@@ -883,7 +883,7 @@
     <m id="D7"   hits="0" violations="0" last_fired="never"/>
     <m id="K1"   hits="42" violations="2" last_fired="2026-09-28"/>
     <m id="K2"   hits="22" violations="1" last_fired="2026-09-27"/>
-    <m id="K3"   hits="30"  violations="2" last_fired="2026-09-30"/>
+    <m id="K3"   hits="30"  violations="3" last_fired="2026-09-30"/>
     <m id="K4"   hits="46" violations="0" last_fired="2026-09-27"/>
     <m id="K5"   hits="5"  violations="2" last_fired="2026-09-27"/>
     <m id="K6"   hits="9"  violations="1" last_fired="2026-09-23"/>
