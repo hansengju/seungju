@@ -864,7 +864,7 @@
     <m id="V6"   hits="0" violations="0" last_fired="never"/>
     <m id="V7"   hits="11" violations="0" last_fired="2026-09-28"/>
     <m id="V8"   hits="30"  violations="1" last_fired="2026-09-28"/>
-    <m id="I1"   hits="229" violations="28" last_fired="2026-09-29"/>
+    <m id="I1"   hits="229" violations="29" last_fired="2026-10-02"/>
     <m id="I2"   hits="28"  violations="0" last_fired="2026-09-28"/>
     <m id="I3"   hits="161" violations="5" last_fired="2026-09-28"/>
     <m id="I4"   hits="19" violations="0" last_fired="2026-09-20"/>
@@ -922,7 +922,7 @@
     <m id="B1" hits="8" violations="0" last_fired="2026-09-08"/>
     <m id="B3" hits="4" violations="0" last_fired="2026-09-15"/>
     <m id="U6" hits="16" violations="0" last_fired="2026-09-28"/>
-    <m id="L1.6" hits="0" violations="0" last_fired="never" state="experimental" since="2026-09-29"/>
+    <m id="L1.6" hits="0" violations="1" last_fired="2026-10-02" state="experimental" since="2026-09-29"/>
   </rule_metrics>
 
   <!-- ════════════════════════════════════════════════════════════
