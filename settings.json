@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "skillOverrides": {
+    "graphify": "name-only",
+    "linear-tickets": "name-only",
+    "orca-cli": "name-only",
+    "orca-emulator-android": "name-only",
+    "orca-emulator": "name-only",
+    "orca-linear": "name-only",
+    "orca-per-workspace-env": "name-only",
+    "orchestration": "name-only",
+    "ponytail-audit": "name-only",
+    "ponytail-debt": "name-only",
+    "ponytail-gain": "name-only",
+    "ponytail-help": "name-only",
+    "ponytail-review": "name-only",
+    "ponytail": "name-only"
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": [
+              "C:\\Users\\hanse\\.claude\\hooks\\harness_reminder.py"
+            ],
+            "timeout": 15,
+            "statusMessage": "하네스 규칙 주입"
+          },
+          {
+            "type": "command",
+            "command": "python",
+            "args": [
+              "C:\\Users\\hanse\\.claude\\hooks\\observe.py"
+            ],
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": [
+              "C:\\Users\\hanse\\.claude\\hooks\\observe.py"
+            ],
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "InstructionsLoaded": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": [
+              "C:\\Users\\hanse\\.claude\\hooks\\observe.py"
+            ],
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Read|Grep|Glob|Bash|PowerShell|Edit|Write|Agent|Workflow",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": [
+              "C:\\Users\\hanse\\.claude\\hooks\\observe.py"
+            ],
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "Grep|Read|Bash|PowerShell|Skill|Agent|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": [
+              "C:\\Users\\hanse\\.claude\\hooks\\assist.py"
+            ],
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": [
+              "C:\\Users\\hanse\\.claude\\hooks\\observe.py"
+            ],
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "python",
+            "args": [
+              "C:\\Users\\hanse/.claude/hooks\\claim_gate.py"
+            ],
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": [
+              "C:\\Users\\hanse\\.claude\\hooks\\observe.py"
+            ],
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": [
+              "C:\\Users\\hanse\\.claude\\hooks\\k6_guard.py"
+            ],
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git *)",
+            "command": "python",
+            "args": [
+              "C:\\Users\\hanse\\.claude\\hooks\\sec_gate.py"
+            ],
+            "timeout": 120
+          }
+        ]
+      },
+      {
+        "matcher": "PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "PowerShell(git *)",
+            "command": "python",
+            "args": [
+              "C:\\Users\\hanse\\.claude\\hooks\\sec_gate.py"
+            ],
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  },
+  "extraKnownMarketplaces": {
+    "msw-ai-coding-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "MSW-Git/msw-ai-coding-plugins-official"
+      }
+    },
+    "ponytail": {
+      "source": {
+        "source": "github",
+        "repo": "DietrichGebert/ponytail"
+      }
+    }
+  },
+  "effortLevel": "xhigh",
+  "skipWorkflowUsageWarning": true,
+  "switchModelsOnFlag": false
+}
