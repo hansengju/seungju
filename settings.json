@@ -83,7 +83,7 @@
         ]
       },
       {
-        "matcher": "Grep|Read|Bash|PowerShell|Skill|Agent",
+        "matcher": "Grep|Read|Bash|PowerShell|Skill|Agent|Edit|Write",
         "hooks": [
           {
             "type": "command",
@@ -143,6 +143,34 @@
               "C:\\Users\\hanse\\.claude\\hooks\\k6_guard.py"
             ],
             "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git *)",
+            "command": "python",
+            "args": [
+              "C:\\Users\\hanse\\.claude\\hooks\\sec_gate.py"
+            ],
+            "timeout": 120
+          }
+        ]
+      },
+      {
+        "matcher": "PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "PowerShell(git *)",
+            "command": "python",
+            "args": [
+              "C:\\Users\\hanse\\.claude\\hooks\\sec_gate.py"
+            ],
+            "timeout": 120
           }
         ]
       }

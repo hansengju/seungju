@@ -358,6 +358,34 @@
         <P4>메이저 버전 업그레이드는 R4.</P4>
       </dependencies>
 
+      <!-- 보안·개발·운영 게이트 (2026-11-12, devsecops — 사용자 승인).
+           C10 검사: 기존 풀에서 겹치는 것은 V7(비밀값 스캔 0건) 게이트뿐 → S1 은 V7 의 기계 강제 확장, S2 는 P1~P4 보강. -->
+      <devsecops added="2026-11-12" rollback="tag pre-devsecops-20261112 + ~/.claude.json.bak.20261112_devsecops">
+        <S1 name="Secret_Gate" extends="V7,I2" state="active">
+          트리거: Bash/PowerShell 의 git commit·git push 직전 (PreToolUse hooks/sec_gate.py, if: Bash(git *) / PowerShell(git *)).
+          측정: gitleaks 8.30.1 — commit 은 스테이징분(+ -a·앞선 git add 가 있으면 추적 미스테이징분), push 는 &lt;src&gt; --not --remotes 커밋 전체.
+          위반 시: 명령 차단(deny — 규칙·파일:줄만, 값은 가림). gitleaks 없음 → 사용자 경고. push 검사 실패 → 사용자 확인(ask).
+          예외(.gitleaksignore)·우회는 사용자 확인 후에만(I5).
+          알려진 공백: 같은 명령에서 새로 add 한 '새 파일' 은 commit 단계에서 못 보고 push 단계에서 잡는다. git 을 전체 경로(git.exe)로 부르면 if 필터에 안 걸린다.
+          시험: hooks/tests/test_sec_gate.py 24/24.
+        </S1>
+        <S2 name="Dependency_Scan" extends="P1,P2,P4" state="experimental">
+          트리거: Edit/Write 로 의존성 선언 파일(package.json·requirements*.txt·pyproject.toml·각종 lock) 변경 (PostToolUse hooks/assist.py, 폴더당 세션 1회 안내).
+          측정: 작업 종료 전 osv-scanner 2.7.0 scan source -r &lt;폴더&gt; 결과(취약 패키지 수)를 보고서 V7 옆에 기재.
+          위반 시: 실행하지 않았으면 보고서에 "미검증" 으로 적고 L7.4 기록.
+        </S2>
+        <O1 name="Ops_Triage" state="experimental">
+          트리거: 크래시·반복 오류·느림·서비스 시작 실패의 원인 추적 요청.
+          측정: ops-triage 스킬 로드 → 이벤트 로그 시각과 앱 로그 원문 줄을 같은 시각으로 맞춰 인용, 방아쇠/근본 분리, 확정·가설 구분(L1.6).
+          위반 시: 앱 로그 부재만으로 "증거 없음" 단정 → L1.6·I1 violations 기록(L7.4).
+        </O1>
+        <toolchain pinned="true">
+          winget(매니페스트 SHA256 검증): gitleaks 8.30.1 · osv-scanner 2.7.0 · sigcheck 2.93 · gh 2.103.3 (사용자 범위).
+          MCP 버전 고정(~/.claude.json): context7 4.6.0 · playwright 0.0.85 · sequential-thinking 2.1.1.
+          올릴 때는 버전을 지정하고 사용자 확인 후에만(공급망). sigcheck 첫 실행의 Sysinternals 약관 동의도 사용자 확인 후.
+        </toolchain>
+      </devsecops>
+
       <!-- 하나은행 CMS 코드베이스 참조 지도 — 규칙(trigger/violation)이 아닌 순수 참조 정보.
            사용자 원 설명을 그대로 믿지 않고 각 드라이브를 직접 탐색(Explore 에이전트 3종 병렬)해 검증함(I1/L1.2). -->
       <hana_cms_codebase_map added="2026-08-19" source="user_request_verified_by_exploration">
@@ -981,6 +1009,9 @@
     <m id="B3" hits="4" violations="0" last_fired="2026-09-15"/>
     <m id="U6" hits="16" violations="0" last_fired="2026-09-28"/>
     <m id="L1.6" hits="0" violations="3" last_fired="2026-10-19" state="experimental" since="2026-09-29"/>
+    <m id="S1" hits="0" violations="0" last_fired="never" state="active" since="2026-11-12"/>
+    <m id="S2" hits="0" violations="0" last_fired="never" state="experimental" since="2026-11-12"/>
+    <m id="O1" hits="0" violations="0" last_fired="never" state="experimental" since="2026-11-12"/>
   </rule_metrics>
 
   <!-- ════════════════════════════════════════════════════════════

@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
-"""PostToolUse(Grep|Read|Bash|PowerShell|Skill|Agent) — 위험한 순간에만 도구 결과 옆에 한두 줄 붙인다
+"""PostToolUse(Grep|Read|Bash|PowerShell|Skill|Agent|Edit|Write) — 위험한 순간에만 도구 결과 옆에 한두 줄 붙인다
 (구조 개편 3단계, 2026-09-29). 차단하지 않는다.
 
   1) Delphi 검색 결과(파일:줄) → 줄마다 dlens 판정 라벨 (주석 { } (* *) · 조건부 · 도달불가 추정 …)
   2) 세션에서 D:\\K Delphi 를 처음 건드렸는데 delphi-cms 스킬이 안 불렸으면 → 한 번만 로드 안내
   3) 서브에이전트(Agent) 결과 → "미검증 — 원문 재확인 전 인용 금지"
   4) dcc32/msbuild 빌드 명령 → 빌드 오류 절차 안내
+  5) Edit/Write 로 의존성 선언 파일(package.json·requirements·lock 등)을 고치면 → 폴더당 한 번 osv-scanner 점검 안내
+     (보안 S2, 2026-11-12). Edit/Write 는 이 분기에서 끝나고 1)~4) 경로는 타지 않는다.
 
 Delphi 와 무관한 호출은 입력만 읽고 바로 끝난다. 훅이 죽으면 아무것도 붙이지 않는다(fail-open),
 오류는 harness-logs/assist-errors.log 에 남긴다.
@@ -21,6 +23,10 @@ LOG_DIR = os.environ.get("HARNESS_LOG_DIR") or os.path.join(HOME, ".claude", "ha
 SKILL_SCRIPTS = os.path.join(HOME, ".claude", "skills", "delphi-cms", "scripts")
 DELPHI_RE = re.compile(r"\.(pas|dfm|dpr|dproj|inc|dpk)\b|(^|[\\/\"'\s=])[dD]:[\\/]+K([\\/]|\b)", re.I)
 BUILD_RE = re.compile(r"\b(dcc32|dcc64|msbuild)\b", re.I)
+DEP_RE = re.compile(r"^(package\.json|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|"
+                    r"requirements[\w.\-]*\.txt|pyproject\.toml|poetry\.lock|Pipfile|Pipfile\.lock|uv\.lock|"
+                    r"go\.mod|go\.sum|Cargo\.toml|Cargo\.lock|composer\.json|composer\.lock|Gemfile|Gemfile\.lock|"
+                    r"pom\.xml|build\.gradle|build\.gradle\.kts|packages\.lock\.json)$", re.I)
 HIT_RE = re.compile(r"^(?P<p>(?:[A-Za-z]:)?[^:\r\n]*?\.(?:pas|dpr|inc|dpk)):(?P<n>\d+)[:\-]", re.I | re.M)
 MAX_FILES, MAX_LINES, MAX_CHARS = 6, 40, 3500
 
@@ -99,6 +105,22 @@ def main():
     tr = d.get("tool_response")
     session = "%s-%s" % (d.get("session_id"), d.get("agent_id") or "main")
     notes = []
+
+    if tool in ("Edit", "Write"):
+        p = ti.get("file_path") or ""
+        if p and DEP_RE.match(os.path.basename(p)):
+            proj = os.path.dirname(os.path.abspath(p))
+            st = load_state(session)
+            key = "dep:" + os.path.normcase(proj)
+            if not st.get(key):
+                st[key] = True
+                save_state(session, st)
+                sys.stdout.write(json.dumps({"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": (
+                    "[보안 S2] 의존성 선언 파일 변경 감지(%s) — 이 작업을 끝내기 전에 "
+                    "osv-scanner scan source -r \"%s\" 로 알려진 취약점을 확인하고, 결과(취약 패키지 수)를 보고서 게이트 V7 옆에 "
+                    "적는다. 새 패키지는 P2 4요소(주간 다운로드·최근 커밋·라이선스·CVE)를 보고한다."
+                    % (os.path.basename(p), proj))}}, ensure_ascii=True))
+        return
 
     if tool == "Skill":
         if str(ti.get("skill", "")).split(":")[-1] == "delphi-cms":

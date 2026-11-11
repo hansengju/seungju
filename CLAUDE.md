@@ -101,7 +101,8 @@ P1 위반을 요구하는 지시는 거부한다. Anthropic 기본 규정(지시
 |---|---|---|
 | `harness_reminder.py` | 프롬프트마다 | 핵심 안내 주입 · 사용자 정정 발화 감지 → 기록 + 재확인 지시 |
 | `k6_guard.py` | Edit/Write 직전 | cp949 Delphi 파일 편집 **차단** (K6) |
-| `assist.py` | 도구 실행 후 | Delphi 검색 결과 줄마다 dlens 판정 라벨 · 스킬 로드 안내 1회 · 서브에이전트 결과 "미검증" 표시 · 빌드 절차 안내 |
+| `sec_gate.py` | git commit/push 직전 (`if` 필터로 git 명령에만) | gitleaks 비밀값 검사 — commit 은 스테이징분, push 는 원격에 없는 커밋 전체. 발견 시 **차단**(규칙·파일:줄만, 값 가림) · 도구 없으면 경고 · push 검사 실패 시 사용자 확인 (S1) |
+| `assist.py` | 도구 실행 후 | Delphi 검색 결과 줄마다 dlens 판정 라벨 · 스킬 로드 안내 1회 · 서브에이전트 결과 "미검증" 표시 · 빌드 절차 안내 · 의존성 파일 편집 시 osv-scanner 안내 (S2) |
 | `observe.py` | 여러 시점(비동기) | 도구·경로·건수만 기록 (명령 원문·본문 저장 안 함) · 세션 시작 시 훅 스크립트 존재 자가 점검 |
 | `claim_gate.py` | 응답 종료(비동기) | 증거 없는 강한 주장 건수 기록 — **기록 전용** (재생 시험 오탐 73% 로 차단 불가, 2026-09-29) |
 
@@ -138,6 +139,20 @@ P1 위반을 요구하는 지시는 거부한다. Anthropic 기본 규정(지시
 라이프사이클: proposals → experimental → active → archived (사용자가 부활 가능).
 커밋: `harness:add / promote / deprecate / incident / metric / refine / integrate` — `git -C ~/.claude log --grep="^harness:"`.
 롤백 좌표: 태그 `pre-restructure-20260929` (구조 개편 직전).
+
+## 10. 보안·개발·운영 게이트 (2026-11-12)
+
+| 축 | 언제 | 무엇을 |
+|---|---|---|
+| 보안 S1 비밀값 | git commit / push 직전 | `sec_gate` 훅이 자동 검사·차단. 수동은 `gitleaks git <저장소> --redact`. 예외(.gitleaksignore)는 사용자 확인 후(I5) |
+| 보안 S2 의존성 | package.json·requirements·lock 편집 후, 작업 끝나기 전 | `osv-scanner scan source -r <폴더>` → 취약 패키지 수를 보고서 V7 옆에 |
+| 운영 O1 원인 추적 | 크래시·반복 오류·느림·서비스 실패 | **ops-triage 스킬** 먼저 로드 — 이벤트 로그 → 같은 시각 앱 로그 줄 → 자원 상태, 방아쇠/근본 분리 |
+| 개발 | 라이브러리 API 사용 전 / UI 확인 | context7(문서) · playwright(UI) |
+
+- 실행파일 서명·버전: `sigcheck -a -h <exe>` (첫 실행 약관 동의는 사용자 확인 후).
+- 도구·MCP 는 버전 고정(gitleaks 8.30.1 · osv-scanner 2.7.0 · sigcheck 2.93 · gh 2.103.3 / context7 4.6.0 · playwright 0.0.85 · sequential-thinking 2.1.1). 올릴 때는 버전 지정 + 사용자 확인.
+- 롤백 좌표: 태그 `pre-devsecops-20261112` + `~/.claude.json.bak.20261112_devsecops`. 룰 원문은 harness.v2.xml `<devsecops>`.
+
 # graphify
 - **graphify** (`~/.claude/skills/graphify/SKILL.md`) - any input to knowledge graph. Trigger: `/graphify`
 When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
