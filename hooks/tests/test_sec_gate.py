@@ -97,6 +97,17 @@ check("S1: git -C <repo> commit → deny", dec(o), "deny")
 rc, o, _ = run("sec_gate.py", P('cd "%s"; git commit -m x' % repo, cwd=other, tool="PowerShell"))
 check("S1: cd <repo>; git commit → deny", dec(o), "deny")
 
+# 4b) PowerShell 변수로 경로를 넘김 — 같은 명령 안 대입을 풀어야 한다
+rc, o, _ = run("sec_gate.py", P('$r = "%s"; git -C $r commit -m x' % repo, cwd=other, tool="PowerShell"))
+check("S1: $r = <repo>; git -C $r commit → deny (변수 해석)", dec(o), "deny")
+rc, o, _ = run("sec_gate.py", P('repo="%s"; git -C "$repo" commit -m x' % repo.replace("\\", "/"), cwd=other))
+check("S1: bash repo=<repo>; git -C \"$repo\" commit → deny", dec(o), "deny")
+# 4c) 끝내 못 푸는 변수 — 조용히 넘기지 않는다
+rc, o, _ = run("sec_gate.py", P("git -C $unknown commit -m x", cwd=other, tool="PowerShell"))
+check("S1: 못 푸는 경로 + commit → 경고(systemMessage)", "해석하지 못해" in ((o or {}).get("systemMessage") or ""), True)
+rc, o, _ = run("sec_gate.py", P("git -C $unknown push", cwd=other, tool="PowerShell"))
+check("S1: 못 푸는 경로 + push → 사용자 확인(ask)", dec(o), "ask")
+
 # 5) git 아닌 명령 / 6) 저장소 밖
 rc, o, _ = run("sec_gate.py", P("dir"))
 check("S1: git 아닌 명령 → 출력 없음", o, None)

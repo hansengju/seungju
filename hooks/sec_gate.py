@@ -30,6 +30,8 @@ GIT_RE = re.compile(r"\bgit(?:\.exe)?(?P<pre>(?:\s+(?:-C\s+%s|-c\s+%s|--no-pager
 C_RE = re.compile(r"-C\s+(%s)" % QTOK)
 CD_RE = re.compile(r"(?:^|[;&|(]|\s)(?:cd|chdir|pushd|Set-Location|sl)(?:\s+-(?:Path|LiteralPath))?\s+(%s)" % QTOK, re.I)
 ADD_RE = re.compile(r"\bgit(?:\.exe)?\b[^;&|\r\n]*?\s(?:add|stage)\b", re.I)
+ASSIGN_PS = re.compile(r"\$(\w+)\s*=\s*(%s)" % QTOK)                    # PowerShell: $c = "..."
+ASSIGN_SH = re.compile(r"(?:^|[;&|\s])([A-Za-z_]\w*)=(%s)" % QTOK)      # bash: c=... / c="..."
 TOK_RE = re.compile(r"""("[^"]*"|'[^']*'|\S+)""")
 FIX = ("조치: 값을 지우거나 환경변수·커밋 제외(.gitignore) 설정 파일로 옮긴 뒤 다시 시도한다. "
        "이미 커밋된 값이면 히스토리 수정이 필요하다(R5 — 사용자 승인 후). 값 자체를 출력·인용하지 않는다(I2). "
@@ -43,7 +45,19 @@ def unq(tok):
     return tok
 
 
-def expand(p):
+def assigns(prefix):
+    """같은 명령 앞부분의 변수 대입을 모은다 — git -C $c commit 처럼 변수로 경로를 넘기는 경우."""
+    v = {}
+    for m in ASSIGN_PS.finditer(prefix):
+        v[m.group(1).lower()] = unq(m.group(2))
+    for m in ASSIGN_SH.finditer(prefix):
+        v.setdefault(m.group(1).lower(), unq(m.group(2)))
+    return v
+
+
+def expand(p, var=None):
+    if var:
+        p = re.sub(r"\$\{(\w+)\}|\$(\w+)\b(?!:)", lambda m: var.get((m.group(1) or m.group(2)).lower(), m.group(0)), p)
     p = re.sub(r"\$env:(\w+)", lambda m: os.environ.get(m.group(1), m.group(0)), p, flags=re.I)
     p = re.sub(r"^(?:\$HOME|\$\{HOME\})(?=[\\/]|$)", lambda m: HOME, p)
     m = re.match(r"^/([a-zA-Z])(/.*)?$", p)  # Git Bash 경로 /c/Users → C:/Users
@@ -53,13 +67,17 @@ def expand(p):
 
 
 def work_dir(cmd, m, cwd):
+    """(경로, 해석실패여부). 변수를 끝내 못 풀면 해석실패 — 조용히 건너뛰지 않고 호출부가 경고/확인한다(I7)."""
+    var = assigns(cmd[:m.start()])
     base = cwd or os.getcwd()
     cds = list(CD_RE.finditer(cmd[:m.start()]))
-    if cds:
-        base = os.path.join(base, expand(unq(cds[-1].group(1))))
-    for c in C_RE.finditer(m.group("pre") or ""):
-        base = os.path.join(base, expand(unq(c.group(1))))
-    return os.path.normpath(base)
+    parts = ([unq(cds[-1].group(1))] if cds else []) + [unq(c.group(1)) for c in C_RE.finditer(m.group("pre") or "")]
+    for part in parts:
+        e = expand(part, var)
+        if "$" in e:
+            return None, True
+        base = os.path.join(base, e)
+    return os.path.normpath(base), False
 
 
 def git_top(d):
@@ -144,10 +162,14 @@ def main():
     cmd = (d.get("tool_input") or {}).get("command") or ""
     if "git" not in cmd.lower():
         return
-    jobs, seen = [], set()
+    jobs, seen, unresolved = [], set(), []
     for m in GIT_RE.finditer(cmd):
         act = m.group("act").lower()
-        repo = git_top(work_dir(cmd, m, d.get("cwd")))
+        wd, bad = work_dir(cmd, m, d.get("cwd"))
+        if bad:
+            unresolved.append(act)
+            continue
+        repo = git_top(wd)
         if not repo:
             continue
         if act == "commit":
@@ -164,10 +186,19 @@ def main():
             if k not in seen:
                 seen.add(k)
                 jobs.append((act, repo, s))
-    if not jobs:
+    if not jobs and not unresolved:
         return
-    acts = sorted({a for a, _, _ in jobs})
+    acts = sorted({a for a, _, _ in jobs} | set(unresolved))
     repos = sorted({r for _, r, _ in jobs})
+    if not jobs:
+        if "push" in unresolved:
+            log(d, acts, repos, -1, "ask-unresolved-path")
+            decide("ask", "[보안 S1] git push 의 저장소 경로(변수)를 해석하지 못해 비밀값 검사를 못 했다. "
+                          "경로를 직접 적어 다시 실행하거나, 사용자 확인 후에만 진행한다.")
+        else:
+            log(d, acts, repos, -1, "allow-unresolved-path")
+            out({"systemMessage": "[보안 S1] git commit 의 저장소 경로(변수)를 해석하지 못해 비밀값 검사를 건너뛰었다. push 단계에서 다시 검사된다."})
+        return
     gl = find_gitleaks()
     if not gl:
         log(d, acts, repos, -1, "skip-no-gitleaks")
@@ -180,6 +211,7 @@ def main():
             found += [(act, f) for f in leaks(gl, repo, s)]
         except Exception as e:
             errors.append((act, repr(e)[:200]))
+    errors += [(a, "경로 변수 해석 실패") for a in unresolved]
     uniq = []
     for act, f in found:
         if (f[0], f[1], f[2]) not in [(u[1][0], u[1][1], u[1][2]) for u in uniq]:

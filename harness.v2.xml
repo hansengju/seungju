@@ -366,8 +366,10 @@
           측정: gitleaks 8.30.1 — commit 은 스테이징분(+ -a·앞선 git add 가 있으면 추적 미스테이징분), push 는 &lt;src&gt; --not --remotes 커밋 전체.
           위반 시: 명령 차단(deny — 규칙·파일:줄만, 값은 가림). gitleaks 없음 → 사용자 경고. push 검사 실패 → 사용자 확인(ask).
           예외(.gitleaksignore)·우회는 사용자 확인 후에만(I5).
+          경로 변수: 같은 명령 안의 대입($c = "..." / c=...)은 풀어서 검사한다. 끝내 못 풀면 commit 은 경고, push 는 사용자 확인(ask) — 조용히 건너뛰지 않는다(I7).
           알려진 공백: 같은 명령에서 새로 add 한 '새 파일' 은 commit 단계에서 못 보고 push 단계에서 잡는다. git 을 전체 경로(git.exe)로 부르면 if 필터에 안 걸린다.
-          시험: hooks/tests/test_sec_gate.py 24/24.
+          사고 기록(2026-11-12): 첫 버전이 git -C $c commit 의 $c 를 못 풀어 검사를 조용히 건너뜀 → 같은 날 수정, 라이브 재확인(SecGate 기록 2건).
+          시험: hooks/tests/test_sec_gate.py 28/28.
         </S1>
         <S2 name="Dependency_Scan" extends="P1,P2,P4" state="experimental">
           트리거: Edit/Write 로 의존성 선언 파일(package.json·requirements*.txt·pyproject.toml·각종 lock) 변경 (PostToolUse hooks/assist.py, 폴더당 세션 1회 안내).
