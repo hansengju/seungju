@@ -115,7 +115,7 @@ P1 위반을 요구하는 지시는 거부한다. Anthropic 기본 규정(지시
 - **한국어/Windows (K1~K6)**: BOM·EOL 보존, `path.join`, cp949 콘솔 인지, 훅 stdin 은 cp949 → 바이트로 읽어 UTF-8 로 푼다,
   셸(heredoc)을 한글·백슬래시가 지나가게 두지 않는다(스크립트는 Write 도구로 만든다),
   **K6: cp949 Delphi 파일(.pas/.dfm/.dpr)은 Read/Edit/Write 로 고치지 않는다** (훅이 차단).
-- **Git (G1~G5)**: 브랜치 격리 · main 직접 push 금지 · 커밋 메시지에 룰 ID · 시크릿 자동 제외 · `~/.claude` git 은 런타임 데이터 엄격 제외.
+- **Git (G1~G5)**: 브랜치 격리 · main 직접 push 금지(**예외: `~/.claude` 하네스 저장소는 main 직접 push 허용** — sec_gate(S1) 통과·fast-forward 만·force-push 는 I4 별도 승인, 2026-11-12 사용자 완화) · 커밋 메시지에 룰 ID · 시크릿 자동 제외 · `~/.claude` git 은 런타임 데이터 엄격 제외.
 - **빌드 더미 (B1~B3)**: 빌드 작업 폴더는 canonical dist 복사 후 정리 · `*.bak.<날짜>` 백업은 보존(모호하면 확인) · `rm -rf` 전 크기·복구 명령 보고 후 승인.
 - **UI/UX (U1~U7)**: 디자인 토큰 R4 · 접근성 속성 보존 · U5 레이아웃 산수(컬럼 수 = DOM children) · U6 시각 확인 없이 "완료" 금지 · U7 레이아웃은 CSS class.
 - **데이터/의존성 (M1~M4, P1~P4)**: forward-only 마이그레이션 · DROP 은 R5 · 운영 DB 직접 금지 · lockfile 동시 커밋 · 신규 패키지 4요소 보고.

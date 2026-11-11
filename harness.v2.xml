@@ -331,7 +331,9 @@
 
       <git_vcs>
         <G1>R3+ 작업 시작 전 작업 브랜치 또는 stash로 격리.</G1>
-        <G2>main/master 직접 push 금지. force-push 별도 승인.</G2>
+        <G2 refined="2026-11-12">main/master 직접 push 금지. force-push 별도 승인.
+          완화(2026-11-12, 사용자 결정 — C1·C3): ~/.claude 하네스 저장소는 main 직접 push 허용.
+          조건: sec_gate(S1) 비밀값 검사 통과 · fast-forward 만 · force-push 는 여전히 I4 별도 승인. 다른 저장소는 기존대로 금지.</G2>
         <G3>커밋 메시지에 적용 규칙 ID 1개 이상 포함.</G3>
         <G4>.env, *.pfx, *.key, credentials.json은 git add 자동 제외.</G4>
         <G5>~/.claude/ 내부에서 git 사용 시 .gitignore로 Claude Code 런타임 데이터(sessions/, plans/, projects/, backups/, telemetry/, plugins/)를 엄격히 제외. 하네스 파일만 추적.</G5>
