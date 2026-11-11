@@ -786,6 +786,64 @@
           AL4 누적 대상이며, 3단계 이후 이 셋을 합쳐 승격하는 안을 사용자 승인에 올린다.
       </incident>
     </p>
+
+    <p id="I-2026-10-27-1" raised="2026-10-27" trigger="self_detected"
+       evidence="session 87747d7e (NIMS 스케줄러 크래시 클레임 분석, CMS DEBUG 로그 발췌 2회)" trial="incident">
+      <incident>
+        [WHAT] 고객 CMS DEBUG 로그(평문 인증헤더·OAuth 토큰·Basic 인증값 포함)를 시각 구간으로 발췌하면서
+          가림 없이(1회차) 또는 불완전한 가림 정규식(2회차: 'Authorization|Cookie|Token' 만 걸러
+          '[doParseAuthentication] Basic / ...' 줄 누락)으로 도구 출력에 비밀값을 찍었다. 사용자 답변·산출물에는 옮기지 않았다.
+        [WHY] 로그에 비밀값이 섞여 있다는 걸 첫 발췌 후에야 인지했고, 가림 패턴을 줄 내용이 아니라 내가 아는 키워드로만 짰다.
+        [VIOLATED] I2.
+        [LESSON] 외부(고객) 로그는 첫 발췌부터 가림을 켠다. 패턴은 'Authorization|Authentication|Basic|Bearer|Cookie|Token|assword|KeyValues|SessionKey'
+          이상으로 넓히고, 필요한 값(IP·UA)은 줄 전체 대신 정규식으로 해당 필드만 뽑는다.
+      </incident>
+    </p>
+
+    <p id="I-2026-10-28-1" raised="2026-10-28" trigger="review_detected"
+       evidence="session 87747d7e (CMSAgent_Scheduler 재적재 해제후사용 수정, 리뷰 워크플로 wf_378e6ec1-cdd)" trial="incident">
+      <incident>
+        [WHAT] 1차 수정에서 TScheduleItemController.Clear 를 '항목마다 대기 → 바로 Free' 로 바꾸고 List.Clear 를 루프 뒤에 둬서,
+          해제된 항목이 최대 약 3초 사전에 남는 창을 새로 넓혔다. 그 사이 작업 스레드의 연계 실행
+          (TSchedulerManager.ScheduleItemRun 의 결과 반영 Assign)이 해제된 항목에 쓰는 해제후사용 경로가 생겼다.
+          배포 전 적대적 리뷰(3관점+반박)가 high 로 잡았고 2차 수정(해제 전 사전 비우기 + 전용 잠금 + isRun/TryGetValue)으로 고쳤다.
+        [WHY] L4.6 '호출 지점 grep' 을 Clear 의 호출자와 StandBy 스레드까지만 봤고, 같은 사전을 다른 스레드가 읽고 쓰는 지점
+          (ScheduleItemRun 조회·결과 반영)을 '항목 수명' 관점으로 찾지 않았다. 원본의 '모두 대기 → 한꺼번에 해제 → 비우기' 순서가
+          지키던 성질(해제 직후 사전에서 사라짐)을 기존 동작 보존 항목으로 적지 않았다.
+        [VIOLATED] L4.6(기존 동작 보존·호출 지점), I11.
+        [LESSON] 객체 해제 순서를 바꿀 때는 그 객체를 담은 컨테이너를 읽고 쓰는 모든 스레드 지점을 grep(컨테이너 이름 기준)하고,
+          '해제 전에 컨테이너에서 뺀다'를 불변식으로 먼저 적는다. 동시성 수정은 배포 전 독립 리뷰를 거친다.
+      </incident>
+    </p>
+
+    <p id="I-2026-10-29-1" raised="2026-10-29" trigger="user_correction"
+       evidence="session 07dca735 (이카운트 자소서 초안, 사용자 정정 'AI를 매일 쓰진 않았어 … 델파이 공부 … 생략해버리냐')" trial="incident">
+      <incident>
+        [WHAT] 자소서 2번 초안에 "매일 쓰는 AI 코딩 도구"라고 근거 없이 썼고, 이력서(D:\introduce\output)를 읽은 뒤에도
+          개발팀 전환 후 델파이 학습을 빼고 AI 프로젝트를 2·4번 소재로 유지했다. 2번은 '일상 불편' 지문과도 맞지 않았다.
+        [WHY] 근거를 메모리(최근 몇 달의 AI 작업 기록)에서만 골라, 메모리에 많이 남은 것 = 사용자 경력의 중심이라고 착각했다.
+          사용 빈도·기간은 확인 없이 형용사로 채웠다.
+        [VIOLATED] I1, L1.6(빈도·기간 주장에 증거 없음), L0.1(지문 재확인 누락).
+        [LESSON] 자기소개 글은 사용자 본인 문서(이력서·경력기술서)를 먼저 읽고 경력의 축을 거기서 잡는다. 메모리는 최근 작업 편향이 있다.
+          빈도·기간('매일', 'N년')은 출처가 없으면 쓰지 않는다. 문항마다 지문 조건(일상/성격/의무 밖)을 소재 선정 전에 대조한다.
+      </incident>
+    </p>
+
+    <p id="I-2026-11-04-1" raised="2026-11-04" trigger="user_correction"
+       evidence="session b90d1bd6 (Hana CMS 테이블 레이아웃, 사용자 정정 '검증도 제대로 되어있지않고 .sql를 참조해서한게 못믿어')" trial="incident">
+      <incident>
+        [WHAT] 테이블 레이아웃 요청에 적용목록 마이그레이션 SQL(2018-01 이후 변경분)만 파싱해 '전체 테이블' 엑셀·HTML을 냈다.
+          IEBK_ACCT_BASE·IEBK_CRD_BASE·IEBK_CERT_BASE 등 기본 테이블이 통째로 빠졌고 한글명도 거의 없었다.
+          그 전에는 "비즈니스 테이블 DDL은 Agent 소스에 없다"를 두 번 단정했다 번복했고, 첫 HTML에서 USB_PN_NO를 평문 PIN 위험으로 적었으나
+          IEBK_CERT_BASE 기준으로는 소스에서 SeedDec256 복호화가 확인됐다.
+        [WHY] 메모리에 이미 있던 정본(하나은행테이블레이아웃20181016.xls)을 찾지 않고 눈앞의 SQL로 대신했다.
+          최종 파일을 원본과 대조하는 검증 없이 집계만 보고했다. 'CRYP_ 없음 = 평문'을 이름만으로 단정했다.
+        [VIOLATED] I1, L1.6(전수·없다 주장에 범위 없음), L1.2, 검증 게이트(산출물 대조 누락).
+        [LESSON] 스키마·레이아웃 산출물은 ① 정본 문서(메모리 reference 포함)부터 찾고 ② 마이그레이션 SQL은 보강·대조로만 쓰고
+          ③ 최종 파일을 원본과 독립 경로(Excel COM 등)로 다시 대조한 수치를 함께 보고한다. 암호화 여부는 이름이 아니라 소스 암복호화 근거로 판정한다.
+        [RESOLUTION] 정본 기준 검증본 재작성(정본 4,872행 Excel 재대조 일치, SQL 해석 누락 0, 잘린 테이블명 88/89 근거 복원). reference 메모리 추가.
+      </incident>
+    </p>
   </proposals>
 
   <!-- ════════════════════════════════════════════════════════════
@@ -831,7 +889,7 @@
        last_fired 형식: "never" | "YYYY-MM-DD"
        ════════════════════════════════════════════════════════════ -->
   <rule_metrics last_updated="2026-09-29">
-    <m id="L0.1" hits="126"  violations="2" last_fired="2026-09-28"/>
+    <m id="L0.1" hits="126"  violations="4" last_fired="2026-10-27"/>
     <m id="L0.2" hits="6"  violations="0" last_fired="2026-09-22"/>
     <m id="L1.1" hits="10"  violations="0" last_fired="2026-09-24"/>
     <m id="L1.2" hits="230" violations="8" last_fired="2026-09-29"/>
@@ -855,7 +913,7 @@
     <m id="L7.3" hits="1"  violations="0" last_fired="2026-09-19"/>
     <m id="L7.4" hits="10"  violations="0" last_fired="2026-09-19"/>
     <m id="L7.5" hits="82"  violations="1" last_fired="2026-09-28"/>
-    <m id="L7.6" hits="93" violations="0" last_fired="2026-09-28"/>
+    <m id="L7.6" hits="93" violations="1" last_fired="2026-10-19"/>
     <m id="V1"   hits="89" violations="0" last_fired="2026-09-28"/>
     <m id="V2"   hits="0" violations="0" last_fired="never"/>
     <m id="V3"   hits="33" violations="1" last_fired="2026-09-26"/>
@@ -864,12 +922,12 @@
     <m id="V6"   hits="0" violations="0" last_fired="never"/>
     <m id="V7"   hits="11" violations="0" last_fired="2026-09-28"/>
     <m id="V8"   hits="30"  violations="1" last_fired="2026-09-28"/>
-    <m id="I1"   hits="229" violations="30" last_fired="2026-10-06"/>
-    <m id="I2"   hits="28"  violations="0" last_fired="2026-09-28"/>
+    <m id="I1"   hits="229" violations="32" last_fired="2026-10-27"/>
+    <m id="I2"   hits="28"  violations="1" last_fired="2026-10-27"/>
     <m id="I3"   hits="161" violations="5" last_fired="2026-09-28"/>
     <m id="I4"   hits="19" violations="0" last_fired="2026-09-20"/>
     <m id="I5"   hits="0"  violations="0" last_fired="never"/>
-    <m id="I6"   hits="156" violations="1" last_fired="2026-09-28"/>
+    <m id="I6"   hits="156" violations="2" last_fired="2026-10-13"/>
     <m id="I7"   hits="12"  violations="0" last_fired="2026-09-28"/>
     <m id="I8"   hits="5"  violations="0" last_fired="2026-09-23"/>
     <m id="I9"   hits="12"  violations="0" last_fired="2026-09-24"/>
@@ -918,11 +976,11 @@
     <m id="L1.4" hits="0" violations="0" last_fired="never"/>
     <m id="L2.4" hits="6" violations="0" last_fired="2026-09-28"/>
     <m id="L4.5" hits="37" violations="0" last_fired="2026-09-28"/>
-    <m id="L4.6" hits="126" violations="6" last_fired="2026-09-29"/>
+    <m id="L4.6" hits="126" violations="8" last_fired="2026-10-13"/>
     <m id="B1" hits="8" violations="0" last_fired="2026-09-08"/>
     <m id="B3" hits="4" violations="0" last_fired="2026-09-15"/>
     <m id="U6" hits="16" violations="0" last_fired="2026-09-28"/>
-    <m id="L1.6" hits="0" violations="2" last_fired="2026-10-06" state="experimental" since="2026-09-29"/>
+    <m id="L1.6" hits="0" violations="3" last_fired="2026-10-19" state="experimental" since="2026-09-29"/>
   </rule_metrics>
 
   <!-- ════════════════════════════════════════════════════════════
