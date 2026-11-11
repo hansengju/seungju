@@ -25,6 +25,7 @@
 /skills/*
 !/skills/delphi-cms/
 !/skills/ops-triage/
+!/skills/mcp-health/
 !/docs/
 !/tools/
 **/__pycache__/
